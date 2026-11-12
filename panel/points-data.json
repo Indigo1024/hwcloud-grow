@@ -1,0 +1,26 @@
+{
+  "updatedAt": "2026-01-01T00:00:00.000Z",
+  "updatedAtLocal": "2026/1/1 08:00:00",
+  "beans": 0,
+  "todayDate": "2026-01-01",
+  "todayGain": 0,
+  "weekStart": "2025-12-29",
+  "weekGain": 0,
+  "todayFlows": [],
+  "daily": [],
+  "recentFlows": [],
+  "bySource": [],
+  "missions": {
+    "total": 0,
+    "finished": 0,
+    "pending": [],
+    "done": []
+  },
+  "links": {},
+  "account": {
+    "id": "main",
+    "label": "账号",
+    "nickname": "未登录"
+  },
+  "ok": false
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Huawei Cloud Grow"
+  short_description: "Complete growth center tasks via manifest"
+  default_prompt: "请使用 hwcloud-grow skill，读取成长中心 Manifest，帮我完成今日可做的低风险任务。"

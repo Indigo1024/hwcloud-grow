@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>华为云 · 登录状态</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+       background:linear-gradient(160deg,#eef2f8 0%,#f7f9fc 100%);
+       font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;color:#252b3a;padding:24px}
+  .card{background:#fff;border-radius:20px;box-shadow:0 12px 40px rgba(20,40,80,.10);padding:32px 40px;text-align:center;max-width:560px;width:100%}
+  .badge{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;
+         padding:6px 14px;border-radius:999px;background:#eef2f8;color:#5c6270;margin-bottom:18px}
+  .dot{width:9px;height:9px;border-radius:50%;background:#b8bfcc;flex:none}
+  .dot.ok{background:#41ba41;box-shadow:0 0 0 4px rgba(65,186,65,.16)}
+  .dot.bad{background:#f66f6a;box-shadow:0 0 0 4px rgba(246,111,106,.16)}
+  .dot.wait{background:#fa9841;box-shadow:0 0 0 4px rgba(250,152,65,.16);animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  h1{font-size:23px;margin:0 0 8px;letter-spacing:-.2px}
+  .sub{color:#8a8f99;font-size:14px;margin:0 0 22px;line-height:1.6}
+  .qrwrap{display:none;margin:4px auto 0;width:min(76vw,380px)}
+  .qrwrap.show{display:block}
+  img{width:100%;height:auto;border:1px solid #eceff5;border-radius:14px;display:block;background:#fff}
+  .tip{color:#5c6270;font-size:14px;margin-top:16px;line-height:1.8}
+  .tip b{color:#252b3a}
+  .meta{margin-top:22px;padding-top:18px;border-top:1px solid #f0f3f8;
+        font-size:12.5px;color:#98a0ad;line-height:1.9;text-align:left}
+  .meta code{background:#f5f7fa;padding:2px 6px;border-radius:5px;font-size:12px;color:#5c6270}
+  .btn{display:inline-block;margin-top:16px;padding:9px 20px;border-radius:10px;background:#3a84ff;color:#fff;
+       font-size:14px;text-decoration:none;font-weight:500}
+  .btn:active{opacity:.85}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge"><span class="dot" id="dot"></span><span id="badgeText">检查中…</span></div>
+    <h1 id="title">华为云登录态</h1>
+    <p class="sub" id="sub">正在读取状态…</p>
+
+    <div class="qrwrap" id="qrwrap">
+      <img id="q" src="scan-qr.png" alt="二维码">
+    </div>
+
+    <p class="tip" id="tip" style="display:none">
+      请用手机 <b>「华为云」APP</b> 扫一扫<br>扫码后请在手机上点击 <b>「确认登录」</b>
+    </p>
+
+    <div class="meta">
+      <div>状态：<code id="mStatus">-</code></div>
+      <div>最后检查：<code id="mChecked">-</code></div>
+      <div>最后登录：<code id="mLogin">-</code></div>
+      <div>本页每 3 秒自动刷新</div>
+    </div>
+  </div>
+
+<script>
+var dot = document.getElementById('dot');
+var badgeText = document.getElementById('badgeText');
+var title = document.getElementById('title');
+var sub = document.getElementById('sub');
+var qrwrap = document.getElementById('qrwrap');
+var tip = document.getElementById('tip');
+var img = document.getElementById('q');
+
+var VIEW = {
+  valid:      { cls:'ok',   badge:'✅ 登录态有效',   title:'一切正常', sub:'定时任务可正常执行，无需操作。' },
+  done:       { cls:'ok',   badge:'✅ 刚刚登录成功', title:'登录成功', sub:'登录态已保存，定时任务恢复运行。' },
+  checking:   { cls:'wait', badge:'⏳ 正在检查',     title:'正在检查登录态…', sub:'请稍候。' },
+  'need-scan':{ cls:'bad',  badge:'⚠️ 需要扫码',     title:'请扫码登录', sub:'登录态已失效，扫码后自动恢复。', qr:true },
+  waiting:    { cls:'wait', badge:'⏳ 等待扫码',     title:'请扫码登录', sub:'二维码约 2 分钟过期，过期会自动刷新。', qr:true },
+  scanned:    { cls:'wait', badge:'📱 已扫描',       title:'请在手机上确认', sub:'在「华为云」APP 里点击「确认登录」。', qr:true },
+  confirmed:  { cls:'wait', badge:'🎉 已确认',       title:'正在完成登录…', sub:'马上就好。' },
+  expired:    { cls:'wait', badge:'♻️ 二维码已刷新', title:'请扫描最新二维码', sub:'上一个二维码已过期。', qr:true },
+  failed:     { cls:'bad',  badge:'❌ 扫码未完成',   title:'请刷新重试', sub:'二维码多次过期，可稍后再打开本页。', qr:true },
+  error:      { cls:'bad',  badge:'❌ 出错',         title:'守护进程异常', sub:'请查看服务日志。' }
+};
+
+function fmt(ts){
+  if(!ts) return '-';
+  var d = new Date(ts);
+  var p = function(n){ return (n<10?'0':'')+n; };
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+}
+
+function render(j){
+  var st = j && j.status ? j.status : 'checking';
+  var v = VIEW[st] || VIEW.checking;
+
+  dot.className = 'dot ' + v.cls;
+  badgeText.textContent = v.badge;
+  title.textContent = v.title;
+  sub.textContent = j && j.message ? j.message : v.sub;
+
+  if (v.qr) {
+    qrwrap.classList.add('show');
+    tip.style.display = 'block';
+    img.src = 'scan-qr.png?t=' + Date.now();
+  } else {
+    qrwrap.classList.remove('show');
+    tip.style.display = 'none';
+  }
+
+  document.getElementById('mStatus').textContent = st;
+  document.getElementById('mChecked').textContent = fmt(j && j.checkedAt);
+  document.getElementById('mLogin').textContent = fmt(j && j.loginAt);
+}
+
+function poll(){
+  fetch('scan-status.json?t=' + Date.now(), {cache:'no-store'})
+    .then(function(r){ return r.json(); })
+    .then(render)
+    .catch(function(){
+      dot.className = 'dot bad';
+      badgeText.textContent = '❌ 无法读取状态';
+      title.textContent = '状态文件不可用';
+      sub.textContent = '请确认 HTTP 服务与登录守护进程都在运行。';
+    });
+}
+poll();
+setInterval(poll, 3000);
+</script>
+</body>
+</html>

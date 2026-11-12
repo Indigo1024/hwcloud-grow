@@ -1,0 +1,460 @@
+{
+  "meta": {
+    "spec_version": "1.0.0",
+    "portal_name": "华为云成长中心 · Agent 自动任务",
+    "official_grow_url": "https://developer.huaweicloud.com/grow",
+    "filter_policy": "仅展示 agent_eligible=true 的任务（含码道一键开通与 CLI 智能问答）",
+    "deploy": {
+      "base_path": "/grow-portal",
+      "public_origin": "<你的门户主机>"
+    },
+    "repo": {
+      "url": "https://github.com/Indigo1024/hwcloud-grow.git",
+      "branch": "main",
+      "skill_path": "skill/SKILL.md",
+      "manifest_path": "manifest.json",
+      "grow_agents_path": ".well-known/grow-agents.json",
+      "runner_path": "runner",
+      "skill_raw_url": "https://github.com/Indigo1024/hwcloud-grow/raw/main/skill/SKILL.md"
+    }
+  },
+  "agent_hints": {
+    "execution_mode": "skill_executor",
+    "settlement_delay_minutes": 10,
+    "verification_url": "https://developer.huaweicloud.com/grow",
+    "executor": {
+      "workdir": "hwcloud-grow/runner",
+      "login": "npm run login",
+      "auto_run": "npm run agent",
+      "report": "npm run report",
+      "note": "任务由本机 Playwright 执行器完成，不要用 Fetch 打开 URL 冒充完成",
+      "install": {
+        "method": "git",
+        "repo_url": "https://github.com/Indigo1024/hwcloud-grow.git",
+        "branch": "main",
+        "runner_subdir": "runner",
+        "git_clone": "git clone --depth 1 https://github.com/Indigo1024/hwcloud-grow.git && cd hwcloud-grow/runner",
+        "git_pull": "cd hwcloud-grow && git pull --ff-only && cd runner",
+        "version_check": "grep T_DEVSPACE_CREATE_ENV scripts/agent-run.mjs"
+      }
+    },
+    "agent_prompt_template": "克隆 {repo_url}，阅读 skill/SKILL.md 并执行",
+    "network": {
+      "use_http_only": true,
+      "avoid_https": true,
+      "do_not_use_tools": ["Fetch", "WebFetch"],
+      "read_skill_via": "git clone --depth 1 {repo_url}，阅读 hwcloud-grow/skill/SKILL.md",
+      "local_skill_path": "hwcloud-grow/skill/SKILL.md",
+      "local_manifest_path": "hwcloud-grow/manifest.json",
+      "reason": "执行器与 Skill 均在 GitCode 开放仓库；门户仅作介绍页，Agent 可不访问网站"
+    }
+  },
+  "tasks": [
+    {
+      "task_id": "T_GROW_CHECKIN",
+      "title": "每日签到",
+      "description": "在华为云开发者成长中心完成每日签到，获取积分奖励",
+      "points": 5,
+      "difficulty": 1,
+      "type": "recurring",
+      "recurrence": "daily",
+      "risk_level": "low",
+      "agent_eligible": true,
+      "auto_run": true,
+      "human_required": false,
+      "estimated_minutes": 1,
+      "product": "grow",
+      "tags": ["grow", "daily", "checkin"],
+      "behaviors": [
+        {
+          "behavior_id": "BEH_GROW_DAILY_CHECKIN",
+          "description": "在成长中心页面完成当日签到",
+          "product": "grow",
+          "entry_url": "https://developer.huaweicloud.com/grow?utm_source=agent-portal&grow_task=T_GROW_CHECKIN&grow_behavior=BEH_GROW_DAILY_CHECKIN&grow_source=developer-grow"
+        }
+      ],
+      "entry_url": "https://developer.huaweicloud.com/grow?utm_source=agent-portal&grow_task=T_GROW_CHECKIN&grow_behavior=BEH_GROW_DAILY_CHECKIN&grow_source=developer-grow",
+      "agent_steps": [
+        {
+          "order": 1,
+          "action": "open_url",
+          "title": "打开成长中心",
+          "params": {
+            "url": "https://developer.huaweicloud.com/grow"
+          }
+        },
+        {
+          "order": 2,
+          "action": "click",
+          "title": "点击签到",
+          "params": {
+            "hint": "在「我的积分」区域找到未签到的日期格子并点击签到；若已签到则跳过"
+          }
+        },
+        {
+          "order": 3,
+          "action": "wait_settlement",
+          "title": "确认积分到账",
+          "params": {
+            "timeout_minutes": 2,
+            "hint": "检查积分是否增加，连续签到天数是否更新"
+          }
+        }
+      ]
+    },
+    {
+      "task_id": "T_CODEARTS_SUBSCRIBE",
+      "title": "首次开通华为云码道",
+      "description": "通过开发者联盟码道一键开通页面完成 CodeArts 代码智能体体验开通（一次性任务）",
+      "points": 50,
+      "difficulty": 2,
+      "type": "one_time",
+      "recurrence": "once",
+      "risk_level": "medium",
+      "agent_eligible": true,
+      "auto_run": true,
+      "human_required": false,
+      "estimated_minutes": 5,
+      "product": "codearts",
+      "tags": ["codearts", "one-time", "subscribe"],
+      "behaviors": [
+        {
+          "behavior_id": "BEH_CODEARTS_SUBSCRIBE",
+          "description": "在码道一键开通页面完成开通",
+          "product": "codearts",
+          "entry_url": "https://developer.huaweicloud.com/codeartsco.html?utm_source=grow&grow_task=T_CODEARTS_SUBSCRIBE&grow_behavior=BEH_CODEARTS_SUBSCRIBE&grow_source=developer-grow"
+        }
+      ],
+      "entry_url": "https://developer.huaweicloud.com/codeartsco.html?utm_source=grow&grow_task=T_CODEARTS_SUBSCRIBE&grow_behavior=BEH_CODEARTS_SUBSCRIBE&grow_source=developer-grow",
+      "agent_steps": [
+        {
+          "order": 1,
+          "action": "open_url",
+          "title": "打开码道一键开通页",
+          "params": {
+            "url": "https://developer.huaweicloud.com/codeartsco.html?utm_source=grow"
+          }
+        },
+        {
+          "order": 2,
+          "action": "click",
+          "title": "完成一键开通",
+          "params": {
+            "hint": "点击页面上的「一键开通」「立即开通」「免费体验」等按钮；若出现付费确认弹窗需用户确认"
+          }
+        },
+        {
+          "order": 3,
+          "action": "human_confirm",
+          "title": "确认无付费开通",
+          "params": {
+            "reason": "仅允许免费/体验版开通；若需绑定付费套餐请暂停并询问用户"
+          }
+        },
+        {
+          "order": 4,
+          "action": "wait_settlement",
+          "title": "等待成长中心结算",
+          "params": {
+            "timeout_minutes": 10,
+            "hint": "回到成长中心确认「首次开通华为云码道」显示已完成"
+          }
+        }
+      ]
+    },
+    {
+      "task_id": "T_CODEARTS_QA",
+      "title": "使用智能问答",
+      "description": "安装码道 CLI 并在 TUI 中提问「用 Python 输出今日日期的多种格式」以完成智能问答成长任务",
+      "points": 30,
+      "difficulty": 2,
+      "type": "recurring",
+      "recurrence": "daily",
+      "risk_level": "low",
+      "agent_eligible": true,
+      "auto_run": true,
+      "human_required": false,
+      "estimated_minutes": 5,
+      "product": "codearts",
+      "tags": ["codearts", "daily", "qa", "cli"],
+      "behaviors": [
+        {
+          "behavior_id": "BEH_CODEARTS_SEND_MSG",
+          "description": "通过码道 CLI TUI 发送一次智能问答",
+          "product": "codearts",
+          "entry_url": "https://codearts.huaweicloud.com/?utm_source=grow&grow_task=T_CODEARTS_QA&grow_behavior=BEH_CODEARTS_SEND_MSG&grow_source=developer-grow"
+        }
+      ],
+      "entry_url": "https://codearts.huaweicloud.com/?utm_source=grow&grow_task=T_CODEARTS_QA&grow_behavior=BEH_CODEARTS_SEND_MSG&grow_source=developer-grow",
+      "cli_install_doc": "https://support.huaweicloud.com/usermanual-cli/codeartsagent_cli_0005.html",
+      "agent_steps": [
+        {
+          "order": 1,
+          "action": "install_cli",
+          "title": "安装码道 CLI",
+          "params": {
+            "doc": "https://support.huaweicloud.com/usermanual-cli/codeartsagent_cli_0005.html",
+            "hint": "Windows: irm .../install.ps1 | iex；macOS/Linux: sh -c \"$(curl -L .../install.sh)\""
+          }
+        },
+        {
+          "order": 2,
+          "action": "browser_auth",
+          "title": "浏览器授权登录",
+          "params": {
+            "hint": "运行 codearts 后 CLI 会自动打开浏览器；在「登录授权」页点击「确认授权」（无需 AK/SK）"
+          }
+        },
+        {
+          "order": 3,
+          "action": "send_message",
+          "title": "在码道 TUI 提问并等待回复",
+          "params": {
+            "product": "codearts",
+            "message": "请写一段python代码，把今天的日期转换为多种格式",
+            "hint": "执行 codearts --prompt「…」；kernel 日志出现用户提问与 assistant finish:stop 才算完成"
+          }
+        },
+        {
+          "order": 4,
+          "action": "wait_settlement",
+          "title": "等待成长中心结算",
+          "params": {
+            "timeout_minutes": 10,
+            "hint": "回到 https://developer.huaweicloud.com/grow 刷新，确认积分 +30"
+          }
+        }
+      ]
+    },
+    {
+      "task_id": "T_DEVSPACE_TOUR",
+      "title": "体验开发者空间",
+      "description": "登录开发者空间并浏览左侧导航或团队空间页面（每周一次）",
+      "points": 20,
+      "difficulty": 1,
+      "type": "recurring",
+      "recurrence": "weekly",
+      "risk_level": "low",
+      "agent_eligible": true,
+      "auto_run": true,
+      "human_required": false,
+      "estimated_minutes": 5,
+      "product": "devspace",
+      "rules_url": "https://bbs.huaweicloud.com/forum/thread-0212720996447283625-1-1.html",
+      "tags": ["devspace", "weekly", "tour"],
+      "tour_nav_labels": [
+        "欢迎",
+        "资产概览",
+        "云开发环境",
+        "鸿蒙云手机",
+        "学习成长",
+        "工具资源",
+        "团队空间"
+      ],
+      "behaviors": [
+        {
+          "behavior_id": "BEH_DEVSPACE_TOUR",
+          "description": "浏览开发者空间左侧导航「欢迎/资产概览/云开发环境/鸿蒙云手机/学习成长/工具资源」或右上角「团队空间」任一页面",
+          "product": "devspace",
+          "entry_url": "https://developer.huaweicloud.com/space/home?utm_source=grow&grow_task=T_DEVSPACE_TOUR&grow_behavior=BEH_DEVSPACE_TOUR&grow_source=developer-grow"
+        }
+      ],
+      "entry_url": "https://developer.huaweicloud.com/space/home?utm_source=grow&grow_task=T_DEVSPACE_TOUR&grow_behavior=BEH_DEVSPACE_TOUR&grow_source=developer-grow",
+      "agent_steps": [
+        {
+          "order": 1,
+          "action": "open_url",
+          "title": "打开开发者空间",
+          "params": {
+            "url": "https://developer.huaweicloud.com/space/home?utm_source=grow&grow_task=T_DEVSPACE_TOUR&grow_behavior=BEH_DEVSPACE_TOUR&grow_source=developer-grow"
+          }
+        },
+        {
+          "order": 2,
+          "action": "click",
+          "title": "浏览导航页面",
+          "params": {
+            "hint": "官方规则：浏览左侧「欢迎」「资产概览」「云开发环境」「鸿蒙云手机」「学习成长」「工具资源」或右上角「团队空间」任一页面即可；执行器会依次点击多页以提高上报成功率"
+          }
+        },
+        {
+          "order": 3,
+          "action": "wait_settlement",
+          "title": "确认任务完成",
+          "params": {
+            "timeout_minutes": 10,
+            "hint": "每周可完成一次；回到成长中心查看「体验开发者空间」是否显示已完成"
+          }
+        }
+      ]
+    },
+    {
+      "task_id": "T_DEVSPACE_CREATE_ENV",
+      "title": "创建云开发环境",
+      "description": "在开发者空间中首次创建云开发环境；若已有环境则跳过（一次性）",
+      "points": 50,
+      "difficulty": 2,
+      "type": "one_time",
+      "recurrence": "once",
+      "risk_level": "medium",
+      "agent_eligible": true,
+      "auto_run": true,
+      "human_required": false,
+      "estimated_minutes": 8,
+      "product": "devspace",
+      "rules_url": "https://bbs.huaweicloud.com/forum/thread-0212720996447283625-1-1.html",
+      "tags": ["devspace", "one-time", "create-env"],
+      "behaviors": [
+        {
+          "behavior_id": "BEH_DEVSPACE_CREATE_ENV",
+          "description": "在云开发环境页首次成功创建开发环境",
+          "product": "devspace",
+          "entry_url": "https://developer.huaweicloud.com/space/devportal/platform/devEnvironment?utm_source=grow&grow_task=T_DEVSPACE_CREATE_ENV&grow_behavior=BEH_DEVSPACE_CREATE_ENV&grow_source=developer-grow"
+        }
+      ],
+      "entry_url": "https://developer.huaweicloud.com/space/devportal/platform/devEnvironment?utm_source=grow&grow_task=T_DEVSPACE_CREATE_ENV&grow_behavior=BEH_DEVSPACE_CREATE_ENV&grow_source=developer-grow",
+      "agent_steps": [
+        {
+          "order": 1,
+          "action": "open_url",
+          "title": "打开云开发环境页",
+          "params": {
+            "url": "https://developer.huaweicloud.com/space/devportal/platform/devEnvironment?utm_source=grow&grow_task=T_DEVSPACE_CREATE_ENV&grow_behavior=BEH_DEVSPACE_CREATE_ENV&grow_source=developer-grow"
+          }
+        },
+        {
+          "order": 2,
+          "action": "verify",
+          "title": "检查是否已有环境",
+          "params": {
+            "hint": "列表中已有环境则跳过；无环境则继续创建"
+          }
+        },
+        {
+          "order": 3,
+          "action": "click",
+          "title": "创建云开发环境",
+          "params": {
+            "hint": "点击「创建」，在弹窗中确认默认配置并提交"
+          }
+        },
+        {
+          "order": 4,
+          "action": "wait_settlement",
+          "title": "等待创建完成",
+          "params": {
+            "timeout_minutes": 15,
+            "hint": "环境进入「已就绪」或列表出现新环境即视为完成"
+          }
+        }
+      ]
+    },
+    {
+      "task_id": "T_AI_OFFICE_STAR",
+      "title": "Star AI 办公实践中心代码仓",
+      "description": "为「AI办公最佳实践」组织下的代码仓库点亮 Star，支持开源社区建设（仅限一次）",
+      "points": 50,
+      "difficulty": 1,
+      "type": "one_time",
+      "recurrence": "once",
+      "risk_level": "low",
+      "agent_eligible": true,
+      "auto_run": true,
+      "human_required": false,
+      "estimated_minutes": 1,
+      "product": "office-agent",
+      "rules_url": "https://hands-on-agent.developer.huaweicloud.com/",
+      "tags": ["office-agent", "one-time", "gitcode", "star"],
+      "behaviors": [
+        {
+          "behavior_id": "BEH_AI_OFFICE_STAR",
+          "description": "通过 GitCode API 为 agent-best-practices 组织下的仓库点亮 Star",
+          "product": "office-agent",
+          "entry_url": "https://gitcode.com/agent-best-practices"
+        }
+      ],
+      "entry_url": "https://gitcode.com/agent-best-practices",
+      "agent_steps": [
+        {
+          "order": 1,
+          "action": "api_call",
+          "title": "查询已 Star 状态",
+          "params": {
+            "hint": "读取 ~/.gitcode/auth.toml 中的 access_token，查询各目标仓库的 stargazers 列表"
+          }
+        },
+        {
+          "order": 2,
+          "action": "api_call",
+          "title": "点亮 Star",
+          "params": {
+            "hint": "POST https://api.gitcode.com/api/v5/repos/agent-best-practices/{repo}/star"
+          }
+        },
+        {
+          "order": 3,
+          "action": "wait_settlement",
+          "title": "等待积分发放",
+          "params": {
+            "timeout_minutes": 10,
+            "hint": "需先在 AI 办公实践中心绑定 GitCode 账号；积分由服务端异步核对发放"
+          }
+        }
+      ]
+    },
+    {
+      "task_id": "T_AI_OFFICE_ISSUE",
+      "title": "给 AI 办公实践中心代码仓提 Issue",
+      "description": "向实践中心代码仓反馈问题或建议，帮助改进实践中心（每日最多完成一次）",
+      "points": 60,
+      "difficulty": 2,
+      "type": "daily",
+      "recurrence": "daily",
+      "risk_level": "medium",
+      "agent_eligible": true,
+      "auto_run": true,
+      "human_required": false,
+      "estimated_minutes": 3,
+      "product": "office-agent",
+      "rules_url": "https://hands-on-agent.developer.huaweicloud.com/",
+      "tags": ["office-agent", "daily", "gitcode", "issue"],
+      "behaviors": [
+        {
+          "behavior_id": "BEH_AI_OFFICE_ISSUE",
+          "description": "通过 GitCode API 向 agent-best-practices/Readme 提交一条 Issue",
+          "product": "office-agent",
+          "entry_url": "https://gitcode.com/agent-best-practices"
+        }
+      ],
+      "entry_url": "https://gitcode.com/agent-best-practices",
+      "agent_steps": [
+        {
+          "order": 1,
+          "action": "verify",
+          "title": "检查今日是否已提过",
+          "params": {
+            "hint": "查询目标仓库 Issue 列表，确认本人今日未提交过；每日限一次"
+          }
+        },
+        {
+          "order": 2,
+          "action": "api_call",
+          "title": "提交 Issue",
+          "params": {
+            "hint": "POST https://api.gitcode.com/api/v5/repos/agent-best-practices/Readme/issues"
+          }
+        },
+        {
+          "order": 3,
+          "action": "wait_settlement",
+          "title": "等待积分发放",
+          "params": {
+            "timeout_minutes": 10,
+            "hint": "需先在 AI 办公实践中心绑定 GitCode 账号；积分由服务端异步核对发放"
+          }
+        }
+      ]
+    }
+  ],
+  "excluded_tasks_note": "以下任务暂未纳入 Agent 门户：实名认证、使用云开发环境、论坛采纳、发布文章、开发者赛事等（需人工/审核）"
+}

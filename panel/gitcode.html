@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitCode 授权 · 访问令牌</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+       background:linear-gradient(160deg,#0b1020,#131b2d);color:#edf3ff;padding:20px;
+       font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+  .card{background:#151b2e;border:1px solid #28324c;border-radius:18px;padding:26px;
+        max-width:560px;width:100%}
+  h1{font-size:20px;margin:0 0 6px;display:flex;align-items:center;gap:9px}
+  .badge{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;
+         padding:5px 12px;border-radius:999px;background:#1c2540;color:#8b98b8;margin-bottom:16px}
+  .dot{width:8px;height:8px;border-radius:50%;background:#b8bfcc;flex:none}
+  .dot.ok{background:#41ba41;box-shadow:0 0 0 4px rgba(65,186,65,.16)}
+  .dot.bad{background:#f66f6a;box-shadow:0 0 0 4px rgba(246,111,106,.16)}
+  .dot.wait{background:#fa9841;box-shadow:0 0 0 4px rgba(250,152,65,.16);animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .sub{color:#8b98b8;font-size:13.5px;line-height:1.7;margin:0 0 18px}
+  .steps{background:#101728;border:1px solid #232d47;border-radius:12px;padding:14px 16px;margin-bottom:16px}
+  .steps ol{margin:0;padding-left:20px;color:#a9b6d3;font-size:13px;line-height:2}
+  .steps b{color:#fff}
+  .steps .perm{display:inline-block;background:rgba(76,141,255,.16);color:#8fb4ff;
+               border-radius:6px;padding:1px 7px;font-size:12px;margin:0 2px}
+  a.link{color:#7cb0ff;text-decoration:none;border-bottom:1px dashed rgba(124,176,255,.5)}
+  a.link:hover{color:#a5c9ff}
+  label{display:block;font-size:13px;color:#8b98b8;margin-bottom:7px}
+  input[type=text]{width:100%;padding:11px 13px;border-radius:10px;border:1px solid #2c3550;
+                   background:#0d1424;color:#edf3ff;font-size:13.5px;
+                   font-family:ui-monospace,Menlo,monospace}
+  input[type=text]:focus{outline:none;border-color:#4c8dff}
+  .row{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}
+  button{flex:1;min-width:130px;padding:11px 16px;border-radius:10px;border:none;cursor:pointer;
+         font-size:14px;font-weight:600;transition:.15s}
+  .primary{background:linear-gradient(135deg,#4c8dff,#7c5cff);color:#fff}
+  .primary:hover{filter:brightness(1.1)}
+  .ghost{background:#1c2540;color:#a9b6d3}
+  .ghost:hover{background:#243055}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .msg{margin-top:14px;padding:11px 14px;border-radius:10px;font-size:13px;line-height:1.7;display:none}
+  .msg.show{display:block}
+  .msg.ok{background:rgba(65,186,65,.12);border:1px solid rgba(65,186,65,.35);color:#8ee08e}
+  .msg.err{background:rgba(246,111,106,.12);border:1px solid rgba(246,111,106,.35);color:#ff9d99}
+  .msg.info{background:rgba(76,141,255,.12);border:1px solid rgba(76,141,255,.35);color:#a5c9ff}
+  .bindbox{margin-top:14px;padding:14px;border-radius:11px;background:rgba(250,152,65,.10);
+           border:1px solid rgba(250,152,65,.4);display:none}
+  .bindbox.show{display:block}
+  .bindbox .t{font-size:13.5px;color:#ffc98a;font-weight:600;margin-bottom:8px}
+  .bindbox a.btn{display:block;text-align:center;padding:11px;border-radius:9px;
+                 background:linear-gradient(135deg,#4c8dff,#7c5cff);color:#fff;
+                 text-decoration:none;font-weight:600;font-size:13.5px}
+  .foot{margin-top:16px;padding-top:14px;border-top:1px solid #232d47;
+        font-size:12px;color:#6b7a99;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="badge"><span class="dot" id="dot"></span><span id="badgeText">检查中…</span></div>
+  <h1>GitCode 授权</h1>
+  <p class="sub" id="sub">Star / Issue 任务需要 GitCode 访问令牌（PAT），且该 GitCode 账号必须先绑定到华为云。</p>
+
+  <div class="steps">
+    <b style="display:block;margin-bottom:6px">如何获取访问令牌</b>
+    <ol>
+      <li>点击打开 <a class="link" id="tokenPage" href="https://gitcode.com/setting/token-classic" target="_blank" rel="noopener">GitCode 访问令牌页面</a>（需先登录 GitCode）</li>
+      <li>点「<b>新建令牌</b>」，名称随意，如 <code>hwcloud-grow</code></li>
+      <li>权限勾选：<span class="perm">项目读取</span><span class="perm">项目写入</span>
+          <span class="perm">Issue 读写</span><span class="perm">PR 读写</span>
+          （即 <code>repo</code> / <code>projects</code> 相关权限）</li>
+      <li>创建后<b>立即复制</b>令牌（只显示一次），粘贴到下方输入框</li>
+    </ol>
+  </div>
+
+  <label for="tok">GitCode 访问令牌</label>
+  <input type="text" id="tok" placeholder="粘贴访问令牌，如 tt9FS-xxxxxxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+  <div class="row">
+    <button class="primary" id="save">保存并检测</button>
+    <button class="ghost" id="clear">清除令牌</button>
+  </div>
+
+  <div class="msg" id="msg"></div>
+
+  <div class="bindbox" id="bindbox">
+    <div class="t">⚠️ 该 GitCode 账号尚未绑定华为云</div>
+    <div style="font-size:12.5px;color:#c9b8a0;line-height:1.7;margin-bottom:10px">
+      必须先绑定，Star / Issue 才会计分。<b>前提：你当前浏览器已登录该华为云账号。</b>
+    </div>
+    <a class="btn" id="bindLink" href="#" target="_blank" rel="noopener">前往绑定 →</a>
+  </div>
+
+  <div class="foot">
+    本页只保存令牌到服务器本地文件（权限 600），不会外传。<br>
+    令牌仅用于调用 GitCode OpenAPI 完成 Star / 提 Issue。
+  </div>
+</div>
+
+<script>
+var $ = function (id) { return document.getElementById(id); };
+var ACC = new URLSearchParams(location.search).get('acc') || localStorage.getItem('hwcloud-acc') || 'main';
+
+function setBadge(kind, text) {
+  $('dot').className = 'dot ' + kind;
+  $('badgeText').textContent = text;
+}
+function showMsg(kind, html) {
+  var m = $('msg');
+  m.className = 'msg show ' + kind;
+  m.innerHTML = html;
+}
+function hideMsg() { $('msg').className = 'msg'; }
+
+function fmtErr(j, status) {
+  return (j && j.error) ? j.error : ('HTTP ' + status);
+}
+
+/** 拉当前账号的 GitCode 状态（是否已配置令牌、是否已绑定华为云） */
+async function refresh() {
+  setBadge('wait', '检查中…');
+  try {
+    var r = await fetch('/api/gitcode/status?acc=' + encodeURIComponent(ACC) + '&t=' + Date.now(), { cache: 'no-store' });
+    var j = await r.json();
+    if (!j.ok) { setBadge('bad', '查询失败'); showMsg('err', fmtErr(j, r.status)); return; }
+    if (!j.hasToken) {
+      setBadge('bad', '未配置令牌');
+      $('sub').textContent = '还没有配置 GitCode 访问令牌。按下方步骤创建并粘贴即可。';
+      $('bindbox').className = 'bindbox';
+      return;
+    }
+    if (j.bound) {
+      setBadge('ok', '已就绪');
+      $('sub').textContent = 'GitCode 账号 ' + (j.login || '') + ' 已绑定华为云，Star / Issue 任务可正常运行。';
+      showMsg('ok', '✅ 令牌有效，且已绑定华为云账号 ' + (j.boundAccount || '') + '。');
+      $('bindbox').className = 'bindbox';
+    } else {
+      setBadge('wait', '已配置令牌，未绑定');
+      $('sub').textContent = '令牌有效（GitCode 账号 ' + (j.login || '') + '），但尚未绑定华为云账号。';
+      showMsg('info', '令牌已保存。还需完成「绑定华为云」这一步，Star / Issue 才会计分。');
+      showBindbox(j.bindUrl);
+    }
+  } catch (e) {
+    setBadge('bad', '网络错误');
+    showMsg('err', String(e).slice(0, 120));
+  }
+}
+
+/** 显示绑定区（含授权链接）。链接由后端现取，10 分钟过期。 */
+function showBindbox(url) {
+  var box = $('bindbox');
+  if (!url) { box.className = 'bindbox'; return; }
+  $('bindLink').href = url;
+  box.className = 'bindbox show';
+}
+
+/** 保存令牌 → 后端写入凭证文件并立即探测（是否绑定华为云） */
+async function save() {
+  var tok = ($('tok').value || '').trim();
+  if (!tok) { showMsg('err', '请先粘贴访问令牌'); return; }
+  var btn = $('save');
+  btn.disabled = true; btn.textContent = '保存并检测中…';
+  hideMsg();
+  try {
+    var r = await fetch('/api/gitcode/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acc: ACC, token: tok }),
+    });
+    var j = await r.json();
+    if (!j.ok) { showMsg('err', '保存失败：' + fmtErr(j, r.status)); return; }
+    if (!j.tokenValid) {
+      showMsg('err', '令牌无效或权限不足：' + (j.error || '请确认权限包含 repo/projects'));
+      setBadge('bad', '令牌无效');
+      return;
+    }
+    $('tok').value = '';
+    if (j.bound) {
+      showMsg('ok', '✅ 保存成功！GitCode 账号 ' + (j.login || '') + ' 已绑定华为云 ' + (j.boundAccount || '') + '，可以直接用了。');
+      setBadge('ok', '已就绪');
+      $('bindbox').className = 'bindbox';
+    } else {
+      showMsg('info',
+        '✅ 令牌已保存（GitCode 账号 ' + (j.login || '') + '）。<br>' +
+        '还差一步：<b>绑定华为云账号</b>。请点下方按钮前往授权' +
+        '（前提：当前浏览器已登录你要绑定的华为云账号）。');
+      setBadge('wait', '待绑定华为云');
+      showBindbox(j.bindUrl);
+    }
+  } catch (e) {
+    showMsg('err', '请求失败：' + String(e).slice(0, 120));
+  } finally {
+    btn.disabled = false; btn.textContent = '保存并检测';
+  }
+}
+
+async function clearToken() {
+  if (!confirm('确定清除该账号的 GitCode 令牌？清除后 Star / Issue 任务将无法执行。')) return;
+  try {
+    var r = await fetch('/api/gitcode/token?acc=' + encodeURIComponent(ACC), { method: 'DELETE' });
+    var j = await r.json();
+    if (j.ok) { showMsg('info', '已清除令牌。'); refresh(); }
+    else showMsg('err', '清除失败：' + fmtErr(j, r.status));
+  } catch (e) { showMsg('err', String(e).slice(0, 120)); }
+}
+
+$('save').onclick = save;
+$('clear').onclick = clearToken;
+$('tok').addEventListener('keydown', function (e) { if (e.key === 'Enter') save(); });
+// 令牌页链接带上当前账号的 GitCode 登录提示（GitCode 站点本身不支持带参登录，仅作提示）
+$('tokenPage').href = 'https://gitcode.com/setting/token-classic';
+
+refresh();
+setInterval(refresh, 15000);
+</script>
+</body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>华为云 · 登录状态</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+       background:linear-gradient(160deg,#eef2f8 0%,#f7f9fc 100%);
+       font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;color:#252b3a;padding:24px}
+  .card{background:#fff;border-radius:20px;box-shadow:0 12px 40px rgba(20,40,80,.10);padding:32px 40px;
+        text-align:center;max-width:560px;width:100%;
+        display:flex;flex-direction:column;align-items:center}
+  .badge{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;
+         padding:6px 14px;border-radius:999px;background:#eef2f8;color:#5c6270;margin-bottom:18px}
+  .dot{width:9px;height:9px;border-radius:50%;background:#b8bfcc;flex:none}
+  .dot.ok{background:#41ba41;box-shadow:0 0 0 4px rgba(65,186,65,.16)}
+  .dot.bad{background:#f66f6a;box-shadow:0 0 0 4px rgba(246,111,106,.16)}
+  .dot.wait{background:#fa9841;box-shadow:0 0 0 4px rgba(250,152,65,.16);animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  h1{font-size:23px;margin:0 0 8px;letter-spacing:-.2px}
+  .sub{color:#8a8f99;font-size:14px;margin:0 0 22px;line-height:1.6}
+  .qrwrap{display:none;margin:16px auto 0;width:min(76vw,380px);max-width:100%}
+  .qrwrap.show{display:block}
+  img{flex:none;width:100%;height:auto;max-width:100%;border:1px solid #eceff5;
+      border-radius:14px;display:block;background:#fff;margin:0 auto}
+  .tip{color:#5c6270;font-size:14px;margin-top:16px;line-height:1.8;text-align:center}
+  .tip b{color:#252b3a}
+  .countdown{margin-top:12px;font-size:14px;font-weight:600;text-align:center}
+  .countdown.fresh{color:#41ba41}
+  .countdown.soon{color:#fa9841}
+  .countdown.dead{color:#f66f6a}
+  .meta{margin-top:22px;padding-top:18px;border-top:1px solid #f0f3f8;width:100%;
+        font-size:12.5px;color:#98a0ad;line-height:1.9;text-align:left}
+  .meta code{background:#f5f7fa;padding:2px 6px;border-radius:5px;font-size:12px;color:#5c6270}
+  .btn{display:inline-block;margin-top:16px;padding:9px 20px;border-radius:10px;background:#3a84ff;color:#fff;
+       font-size:14px;text-decoration:none;font-weight:500}
+  .btn:active{opacity:.85}
+
+  /* ---- 账号切换 ---- */
+  .acctabs{display:flex;gap:8px;margin-bottom:20px;width:100%;justify-content:center;flex-wrap:wrap}
+  .acctab{flex:1;max-width:200px;min-width:130px;border:1.5px solid #e2e8f2;background:#f7f9fc;border-radius:12px;
+          padding:10px 12px;cursor:pointer;font:inherit;color:#5c6270;text-align:center;transition:.18s}
+  .acctab:hover{border-color:#c3d4ee;background:#eef4ff}
+  .acctab.on{border-color:#3a84ff;background:linear-gradient(135deg,#eaf2ff,#f2f0ff);color:#252b3a}
+  .acctab .an{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .acctab .as{font-size:11.5px;margin-top:2px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+</style>
+</head>
+<body>
+  <div class="card">
+    <!-- 账号切换：两个号各有独立守护实例与二维码文件，切过去就是扫那个号的码 -->
+    <div class="acctabs" id="acctabs"></div>
+
+    <div class="badge"><span class="dot" id="dot"></span><span id="badgeText">检查中…</span></div>
+    <h1 id="title">华为云登录态</h1>
+    <p class="sub" id="sub">正在读取状态…</p>
+
+    <div class="qrwrap" id="qrwrap">
+      <img id="q" src="scan-qr.png" alt="二维码">
+    </div>
+
+    <p class="tip" id="tip" style="display:none">
+      请用手机 <b>「华为云」APP</b> 扫一扫<br>扫码后请在手机上点击 <b>「确认登录」</b>
+    </p>
+    <p class="countdown" id="cd" style="display:none">-</p>
+
+    <div class="meta">
+      <div>状态：<code id="mStatus">-</code></div>
+      <div>二维码：<code id="mQr">-</code></div>
+      <div>最后检查：<code id="mChecked">-</code></div>
+      <div>最后登录：<code id="mLogin">-</code></div>
+      <div>本页每 3 秒自动刷新</div>
+    </div>
+  </div>
+
+<script>
+var dot = document.getElementById('dot');
+var badgeText = document.getElementById('badgeText');
+var title = document.getElementById('title');
+var sub = document.getElementById('sub');
+var qrwrap = document.getElementById('qrwrap');
+var tip = document.getElementById('tip');
+var img = document.getElementById('q');
+
+var VIEW = {
+  valid:      { cls:'ok',   badge:'✅ 登录态有效',   title:'一切正常', sub:'定时任务可正常执行，无需操作。' },
+  done:       { cls:'ok',   badge:'✅ 刚刚登录成功', title:'登录成功', sub:'登录态已保存，定时任务恢复运行。' },
+  checking:   { cls:'wait', badge:'⏳ 正在检查',     title:'正在检查登录态…', sub:'请稍候。' },
+  'need-scan':{ cls:'bad',  badge:'⚠️ 需要扫码',     title:'请扫码登录', sub:'登录态已失效，扫码后自动恢复。', qr:true },
+  waiting:    { cls:'wait', badge:'⏳ 等待扫码',     title:'请扫码登录', sub:'二维码过期后会自动换成新码，随时可扫。', qr:true },
+  scanned:    { cls:'wait', badge:'📱 已扫描',       title:'请在手机上确认', sub:'在「华为云」APP 里点击「确认登录」。', qr:true },
+  confirmed:  { cls:'wait', badge:'🎉 已确认',       title:'正在完成登录…', sub:'马上就好。' },
+  expired:    { cls:'wait', badge:'♻️ 二维码已刷新', title:'请扫描最新二维码', sub:'上一个二维码已过期，下面是新码。', qr:true },
+  error:      { cls:'bad',  badge:'❌ 出错',         title:'守护进程异常', sub:'请查看服务日志。' }
+};
+
+/** 二维码有效期（毫秒），与 login-daemon 的 QR_TTL_MS 保持一致 */
+var QR_TTL_MS = 110000;
+
+function fmt(ts){
+  if(!ts) return '-';
+  var d = new Date(ts);
+  var p = function(n){ return (n<10?'0':'')+n; };
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+}
+
+/** 当前展示的二维码生成时间（用于本地倒计时，不必每次轮询都重置） */
+var qrAt = 0;
+
+/**
+ * 当前账号。主号沿用 scan-status.json / scan-qr.png，
+ * 其余账号为 scan-status-<id>.json / scan-qr-<id>.png —— 与采集脚本
+ * accounts.mjs 的 suffixFor 规则一致，这里必须同步。
+ */
+var ACC_IDS = [];
+var ACC_META = {};
+var current = localStorage.getItem('hwcloud-acc') || 'main';
+
+// 支持 ?acc=<id>：面板的「＋ 加账号」会带参数打开本页，
+// 此时直接显示该账号的二维码，**不要求它已在账号清单里**——
+// 因为"加账号"的场景就是账号还没登记（2026-11-11 需求）。
+var paramAcc = new URLSearchParams(location.search).get('acc');
+if (paramAcc) current = paramAcc;
+
+function statusFile(){ return current === 'main' ? 'scan-status.json' : 'scan-status-' + current + '.json'; }
+function qrFile(at){ return (current === 'main' ? 'scan-qr.png' : 'scan-qr-' + current + '.png') + '?t=' + at; }
+
+async function loadIndex(){
+  var idx = null;
+  try {
+    var r = await fetch('points-index.json?t=' + Date.now(), {cache:'no-store'});
+    if (r.ok) idx = await r.json();
+  } catch(e) { /* 索引缺失时退回只显示主号 */ }
+  ACC_IDS = (idx && idx.accountOrder) || ['main'];
+  ACC_META = (idx && idx.accounts) || {};
+  // 带 ?acc= 进来时把该账号临时加入标签（即使尚未登记），便于用户看到进度
+  if (paramAcc && ACC_IDS.indexOf(paramAcc) < 0) ACC_IDS = ACC_IDS.concat([paramAcc]);
+  if (ACC_IDS.indexOf(current) < 0) current = ACC_IDS[0];
+  renderTabs();
+}
+
+function renderTabs(){
+  var box = document.getElementById('acctabs');
+  if (ACC_IDS.length <= 1) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  box.innerHTML = ACC_IDS.map(function(id){
+    var m = ACC_META[id] || {};
+    var nm = m.nickname || m.label || id;
+    var has = typeof m.beans === 'number';
+    var sub = has ? (m.beans + ' 分') : '未登录';
+    return '<button class="acctab' + (id === current ? ' on' : '') + '" data-id="' + id + '">' +
+      '<div class="an">' + nm + '</div><div class="as">' + sub + '</div></button>';
+  }).join('');
+  Array.prototype.forEach.call(box.querySelectorAll('.acctab'), function(b){
+    b.onclick = function(){
+      if (b.dataset.id === current) return;
+      current = b.dataset.id;
+      localStorage.setItem('hwcloud-acc', current);
+      qrAt = 0;                  // 换账号后二维码要重新拉，不能沿用上一个号的缓存
+      renderTabs();
+      poll();
+    };
+  });
+}
+
+function tickCountdown(){
+  var cd = document.getElementById('cd');
+  if (!qrAt) { cd.style.display = 'none'; return; }
+  cd.style.display = 'block';
+  var left = Math.round((qrAt + QR_TTL_MS - Date.now()) / 1000);
+  if (left <= 0) {
+    cd.className = 'countdown dead';
+    cd.textContent = '♻️ 本码已过期，正在生成新码…（请刷新查看）';
+  } else if (left <= 20) {
+    cd.className = 'countdown soon';
+    cd.textContent = '⏱ 本码还剩 ' + left + ' 秒过期';
+  } else {
+    cd.className = 'countdown fresh';
+    cd.textContent = '✅ 本码有效，还剩 ' + left + ' 秒';
+  }
+}
+
+function render(j){
+  var st = j && j.status ? j.status : 'checking';
+  var v = VIEW[st] || VIEW.checking;
+
+  dot.className = 'dot ' + v.cls;
+  badgeText.textContent = v.badge;
+  title.textContent = v.title;
+  sub.textContent = j && j.message ? j.message : v.sub;
+
+  if (v.qr) {
+    qrwrap.classList.add('show');
+    tip.style.display = 'block';
+    // qrAt 变化说明守护换了新码，此时才需要重新拉图（加时间戳防缓存）
+    var at = (j && j.qrAt) || 0;
+    if (at && at !== qrAt) {
+      qrAt = at;
+      img.src = qrFile(at);
+    } else if (!qrAt) {
+      qrAt = at;
+      img.src = qrFile(Date.now());
+    }
+  } else {
+    qrwrap.classList.remove('show');
+    tip.style.display = 'none';
+    qrAt = 0;
+  }
+
+  document.getElementById('mStatus').textContent = st;
+  document.getElementById('mQr').textContent = (j && j.round ? '第 ' + j.round + ' 轮 · ' : '') + fmt(j && j.qrAt);
+  document.getElementById('mChecked').textContent = fmt(j && j.checkedAt);
+  document.getElementById('mLogin').textContent = fmt(j && j.loginAt);
+  tickCountdown();
+}
+
+function poll(){
+  fetch(statusFile() + '?t=' + Date.now(), {cache:'no-store'})
+    .then(function(r){ return r.json(); })
+    .then(render)
+    .catch(function(){
+      dot.className = 'dot bad';
+      badgeText.textContent = '❌ 无法读取状态';
+      title.textContent = '状态文件不可用';
+      // 新号没登录过时状态文件还不存在，这属于正常初始状态，不该说成服务故障
+      sub.textContent = current === 'main'
+        ? '请确认 HTTP 服务与登录守护进程都在运行。'
+        : '该账号还没有生成过二维码，登录守护重启后会自动出现。';
+    });
+}
+loadIndex().then(poll);
+setInterval(poll, 3000);
+setInterval(tickCountdown, 1000);
+</script>
+</body>
+</html>

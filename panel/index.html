@@ -1,0 +1,1185 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>华为云成长中心 · 积分看板</title>
+<style>
+  :root{
+    --bg:#0b1020; --card:#151b2e; --card2:#1b2338; --line:#28324c;
+    --txt:#e8ecf5; --dim:#8b98b8; --acc:#4c8dff; --ok:#2ecc71; --warn:#ffb020;
+    --grad:linear-gradient(135deg,#4c8dff,#7c5cff);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--txt);padding:20px;max-width:1100px;margin:0 auto;
+  }
+  h1{font-size:20px;font-weight:600;display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  h1 .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .sub{color:var(--dim);font-size:12px;margin-bottom:20px}
+
+  .grid{display:grid;gap:14px;margin-bottom:20px}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:2fr 1fr}
+  @media(max-width:720px){.g3,.g2{grid-template-columns:1fr}}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .card .label{color:var(--dim);font-size:12px;margin-bottom:6px}
+  .big{font-size:34px;font-weight:700;background:var(--grad);-webkit-background-clip:text;
+       -webkit-text-fill-color:transparent;background-clip:text;line-height:1.2}
+  .big.plain{background:none;-webkit-text-fill-color:var(--txt)}
+  .unit{font-size:14px;color:var(--dim);font-weight:400;-webkit-text-fill-color:var(--dim);margin-left:4px}
+  .delta{font-size:22px;font-weight:600;color:var(--ok)}
+  .delta.zero{color:var(--dim)}
+
+  .barwrap{margin-top:12px}
+  .bar{height:8px;background:var(--card2);border-radius:4px;overflow:hidden}
+  .bar>i{display:block;height:100%;background:var(--grad);border-radius:4px;transition:width .5s}
+
+  h2{font-size:14px;color:var(--dim);margin:22px 0 10px;font-weight:600;
+     display:flex;justify-content:space-between;align-items:center}
+  h2 a{color:var(--acc);text-decoration:none;font-size:12px;font-weight:400}
+
+  .links{display:flex;flex-wrap:wrap;gap:10px}
+  .links a{
+    background:var(--card);border:1px solid var(--line);color:var(--txt);text-decoration:none;
+    padding:10px 16px;border-radius:10px;font-size:13px;transition:.2s;display:flex;align-items:center;gap:6px;
+  }
+  .links a:hover{border-color:var(--acc);background:var(--card2);transform:translateY(-1px)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--dim);font-weight:500;font-size:12px;padding:8px 10px;
+     border-bottom:1px solid var(--line)}
+  td{padding:9px 10px;border-bottom:1px solid rgba(40,50,76,.5)}
+  tr:last-child td{border-bottom:none}
+  .pts{color:var(--ok);font-weight:600;text-align:right;white-space:nowrap}
+  .pts.neg{color:var(--warn)}
+  .t{color:var(--dim);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .tag{display:inline-block;padding:1px 7px;border-radius:5px;font-size:11px;
+       background:rgba(76,141,255,.15);color:#8fb4ff;margin-left:6px}
+
+  /* 每日增量柱状图。
+     30 天的柱子用 flex 平分宽度，在手机上必然被压到出界/挤成一团
+     （flex:1 + min-width:8px + gap，容器不够宽时就溢出）。
+     改为：横向可滚动 + 每根柱子给固定宽度，小屏滑动查看，不撑破卡片。 */
+  .barscroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
+             padding-bottom:4px;scrollbar-width:thin}
+  .barscroll::-webkit-scrollbar{height:6px}
+  .barscroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .bars{display:flex;align-items:flex-end;gap:5px;height:120px;padding-top:8px;
+        min-width:min-content}
+  .bars .b{flex:0 0 auto;width:16px;background:var(--grad);border-radius:4px 4px 0 0;
+           position:relative;min-height:3px;transition:height .5s}
+  .bars .b span{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);
+                font-size:10px;color:var(--dim);white-space:nowrap}
+  .bars .b em{position:absolute;top:-18px;left:50%;transform:translateX(-50%);
+              font-size:10px;color:var(--dim);font-style:normal;white-space:nowrap}
+  /* 移动端：柱子更窄、字号更小，减少横向滚动距离 */
+  @media(max-width:520px){
+    .bars{gap:4px;height:104px}
+    .bars .b{width:13px}
+    .bars .b span,.bars .b em{font-size:9px}
+  }
+
+  .task{display:flex;justify-content:space-between;align-items:center;gap:12px;
+        padding:10px 12px;border-radius:10px;background:var(--card2);margin-bottom:8px;font-size:13px}
+  .task:hover{background:#212b45}
+  .task .l{flex:1;min-width:0}
+  .task .l a{color:var(--txt);text-decoration:none;display:block;overflow:hidden;
+             text-overflow:ellipsis;white-space:nowrap}
+  .task .l a:hover{color:var(--acc)}
+  .task .r{color:var(--ok);font-weight:600;white-space:nowrap}
+  .empty{color:var(--dim);font-size:13px;padding:16px;text-align:center}
+  .freshline{display:flex;align-items:center;gap:7px;margin-top:8px;font-size:12.5px;color:var(--dim)}
+  .freshline i{width:7px;height:7px;border-radius:50%;background:var(--dim);display:inline-block;flex:0 0 auto}
+  .freshline.ok i{background:var(--ok);box-shadow:0 0 7px var(--ok)}
+  .freshline.stale i{background:var(--warn);box-shadow:0 0 7px var(--warn)}
+  .freshline.err i{background:#ff5c5c;box-shadow:0 0 7px #ff5c5c}
+  .note{color:var(--dim);font-size:11.5px;margin-top:10px;line-height:1.7}
+  .err{background:rgba(255,176,32,.1);border:1px solid rgba(255,176,32,.3);color:var(--warn);
+       padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:13px}
+
+  /* ---- 账号切换条 ---- */
+  .accbar{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;align-items:stretch}
+  /* 尚无任何账号时的引导条 */
+  .accbar .firstrun{flex:1;min-width:200px;display:flex;flex-direction:column;justify-content:center;
+                    border:1px dashed #3a4a6e;border-radius:12px;padding:14px 16px;
+                    color:var(--dim);font-size:13px;line-height:1.7}
+  .accbar .firstrun b{color:var(--txt)}
+  /* 「＋ 加账号」：虚线边框 + 弱化配色，与真实账号卡区分开 */
+  .accbtn.addacc{border-style:dashed;border-color:#3a4a6e;background:transparent;
+                 flex:0 0 auto;min-width:150px}
+  .accbtn.addacc:hover{border-color:var(--acc);background:rgba(76,141,255,.06)}
+  .accbtn.addacc .av{background:transparent;border:1.5px dashed #3a4a6e;color:var(--acc);font-size:18px}
+  /* 待扫码卡片（误触/未完成的加账号）：橙色虚线，点一下可取消 */
+  .accbtn.pending{border-style:dashed;border-color:rgba(250,152,65,.55);background:rgba(250,152,65,.06)}
+  .accbtn.pending .av{background:transparent;border:1.5px dashed rgba(250,152,65,.6);color:#ffb020}
+  .accbtn.pending .st.wait{background:rgba(250,152,65,.18);color:#ffc98a}
+  .accbtn{
+    flex:1;min-width:180px;display:flex;align-items:center;gap:11px;cursor:pointer;
+    background:var(--card);border:1.5px solid var(--line);border-radius:12px;
+    padding:12px 15px;transition:.18s;color:var(--txt);text-align:left;font:inherit;
+  }
+  .accbtn:hover{border-color:#3a4a6e;background:var(--card2)}
+  .accbtn.on{border-color:var(--acc);background:linear-gradient(135deg,rgba(76,141,255,.14),rgba(124,92,255,.10))}
+  .accbtn .av{
+    width:34px;height:34px;border-radius:9px;flex:0 0 auto;display:grid;place-items:center;
+    font-size:14px;font-weight:700;background:var(--card2);color:var(--dim);
+  }
+  .accbtn.on .av{background:var(--grad);color:#fff}
+  .accbtn .meta{flex:1;min-width:0}
+  .accbtn .nm{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;
+              text-overflow:ellipsis;line-height:1.35}
+  .accbtn .sc{font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden;
+              text-overflow:ellipsis;line-height:1.4}
+  .accbtn.on .sc{color:#9fb6e8}
+  .accbtn .st{font-size:10.5px;padding:2px 7px;border-radius:20px;flex:0 0 auto;
+              background:rgba(139,152,184,.16);color:var(--dim);white-space:nowrap}
+  .accbtn .st.ok{background:rgba(46,204,113,.16);color:var(--ok)}
+  .accbtn .st.no{background:rgba(255,92,92,.16);color:#ff8080}
+
+  /* ---- 运行控制区 ---- */
+  .ctlhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .runrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+          padding:12px 14px;border-radius:11px;background:var(--card2);margin-bottom:10px}
+  .runrow .who{font-weight:600;font-size:13.5px;min-width:56px}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 11px;border-radius:20px;
+        font-size:12px;font-weight:600;white-space:nowrap}
+  .pill.idle{background:rgba(139,152,184,.16);color:var(--dim)}
+  .pill.busy{background:rgba(76,141,255,.18);color:#8fb4ff}
+  .pill.ok{background:rgba(46,204,113,.16);color:var(--ok)}
+  .pill.bad{background:rgba(255,92,92,.16);color:#ff8080}
+  .pill .spin{width:9px;height:9px;border-radius:50%;background:currentColor;
+              animation:pulse 1.1s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+
+  /* 运行历史：长时长的任务（如完整流程）要能看出「跑了多久」 */
+  .hst{color:var(--dim);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .hst.res{font-weight:600;color:var(--ok)}
+  .hst.res.bad{color:#ff8080}
+  .hst.res.busy{color:#8fb4ff}
+
+  /* 运行历史表格：窄屏（手机）下四列会撑破卡片。
+     处理方式：让标题列可换行、其余列不换行且不压缩，
+     并用 table-layout:fixed + 百分比列宽约束整体宽度，
+     这样"失败(-9)"这类较长的徽章文字也不会把行挤出边界。
+     （2026-11-11 移动端实测：失败徽章与耗时列超出右边界） */
+  #histWrap table{width:100%;table-layout:fixed;border-collapse:collapse}
+  #histWrap td{padding:6px 4px;vertical-align:top;overflow:hidden;text-overflow:ellipsis}
+  /* 列宽：时间 / 标题 / 耗时 / 结果 */
+  #histWrap td:nth-child(1){width:24%}
+  #histWrap td:nth-child(2){width:38%;word-break:break-word;white-space:normal;
+                            line-height:1.35;font-size:12.5px}
+  #histWrap td:nth-child(3){width:16%;text-align:right}
+  #histWrap td:nth-child(4){width:22%;text-align:right;white-space:nowrap}
+  /* 手机端：字号略缩，列宽重排，优先保证结果列完整可见 */
+  @media(max-width:520px){
+    #histWrap td:nth-child(1){width:26%;font-size:11px}
+    #histWrap td:nth-child(2){width:30%;font-size:11.5px}
+    #histWrap td:nth-child(3){width:16%;font-size:11px}
+    #histWrap td:nth-child(4){width:28%;font-size:11px}
+    .hst.res{padding:1px 5px;border-radius:5px;background:rgba(46,204,113,.12);display:inline-block}
+    .hst.res.bad{background:rgba(255,92,92,.12)}
+    .hst.res.busy{background:rgba(76,141,255,.12)}
+  }
+  /* 结果徽章允许在极窄屏换行显示（如「失败(被杀)」），
+     而不是硬挤出一行把单元格撑出去 */
+  #histWrap td:nth-child(4) .hst.res{white-space:normal;display:inline-block;line-height:1.35}
+
+  .btn{border:1px solid var(--line);background:var(--card);color:var(--txt);
+       padding:8px 15px;border-radius:9px;font:inherit;font-size:13px;cursor:pointer;
+       transition:.18s;white-space:nowrap}
+  .btn:hover{border-color:var(--acc);background:var(--card2)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.primary{background:var(--grad);border:none;color:#fff;font-weight:600}
+  .btn.primary:hover{filter:brightness(1.1)}
+  .btn.sm{padding:6px 11px;font-size:12.5px}
+  .btn.danger{border-color:rgba(255,92,92,.45);color:#ff9c9c}
+
+  /* 定时开关 */
+  .sw{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--dim);cursor:pointer;
+      user-select:none;white-space:nowrap}
+  .sw input{display:none}
+  .sw .track{width:38px;height:21px;border-radius:20px;background:#33405e;position:relative;transition:.2s;flex:0 0 auto}
+  .sw .track::after{content:"";position:absolute;top:2.5px;left:2.5px;width:16px;height:16px;border-radius:50%;
+                    background:#8b98b8;transition:.2s}
+  .sw input:checked + .track{background:rgba(46,204,113,.35)}
+  .sw input:checked + .track::after{left:19.5px;background:var(--ok)}
+
+  /* 任务按钮网格 */
+  /* 分组容器（每日/每周/每月/工具） */
+  .tgroups{display:flex;flex-direction:column;gap:16px}
+  .tgroup-h{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;
+            color:var(--dim);margin-bottom:9px;letter-spacing:.5px}
+  .tgroup-h::after{content:"";flex:1;height:1px;background:var(--line)}
+  .tgroup-h span{background:var(--card2);color:var(--txt);border-radius:20px;
+                 padding:1px 8px;font-size:11px;font-weight:600}
+  .tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:9px}
+  @media(max-width:520px){ .tgrid{grid-template-columns:1fr} }
+  .tbtn{position:relative;text-align:left;padding:11px 12px;border-radius:10px;
+        border:1px solid var(--line);background:var(--card);color:var(--txt);
+        font:inherit;font-size:13px;cursor:pointer;transition:.18s;
+        /* 顶部留出一条"徽章区"：徽章绝对定位在右上角，
+           标题若不加内边距会与它重叠（2026-11-11 截图确认：
+           「体验 AI DevSpace已完成」「展览馆作品已完成」文字压在一起）。
+           用 padding-top 让内容整体下移，徽章独占右上角那一行。 */
+        padding-top:26px;min-height:74px}
+  .tbtn .tt{font-weight:600;display:block;margin-bottom:3px;line-height:1.35;
+            /* 再保险一层：给标题右侧留出徽章宽度，长标题自动换行而不压到徽章 */
+            padding-right:2px}
+  .tbtn:hover{border-color:var(--acc);background:var(--card2)}
+  .tbtn:disabled{opacity:.45;cursor:not-allowed}
+  .tbtn .tt{font-weight:600;display:block;margin-bottom:3px}
+  .tbtn .td{color:var(--dim);font-size:11px;line-height:1.45;display:block}
+  .tbtn .badge{position:absolute;top:8px;right:9px;font-size:10px;padding:2px 7px;
+               border-radius:20px;white-space:nowrap;line-height:1.4}
+  .tbtn .badge.done{background:rgba(46,204,113,.18);color:var(--ok)}
+  .tbtn .badge.pt{background:rgba(76,141,255,.16);color:#8fb4ff}
+  .tbtn.full{grid-column:1/-1;background:linear-gradient(135deg,rgba(76,141,255,.13),rgba(124,92,255,.10));
+             border-color:rgba(76,141,255,.4)}
+  .tbtn.full .tt{font-size:14px}
+
+  /* 按周期着色：每日=绿、每周=蓝、每月=橙。
+     已完成的用实色边框 + 淡底，一眼看出"这档做完了"；
+     未完成的保持中性，避免颜色噪音。 */
+  .tbtn.p-daily.done{background:rgba(46,204,113,.10);border-color:rgba(46,204,113,.55)}
+  .tbtn.p-daily.done .tt{color:#7ee2a8}
+  .tbtn.p-weekly.done{background:rgba(76,141,255,.11);border-color:rgba(76,141,255,.6)}
+  .tbtn.p-weekly.done .tt{color:#8fb4ff}
+  .tbtn.p-monthly.done{background:rgba(255,159,64,.11);border-color:rgba(255,159,64,.6)}
+  .tbtn.p-monthly.done .tt{color:#ffbe7d}
+  /* 未完成但周/月任务：左侧色条提示档位（不动底色，保持清爽） */
+  .tbtn.p-daily:not(.done){border-left:3px solid rgba(46,204,113,.5)}
+  .tbtn.p-weekly:not(.done){border-left:3px solid rgba(76,141,255,.5)}
+  .tbtn.p-monthly:not(.done){border-left:3px solid rgba(255,159,64,.5)}
+  .tbtn .badge.daily{background:rgba(46,204,113,.18);color:var(--ok)}
+  .tbtn .badge.weekly{background:rgba(76,141,255,.18);color:#8fb4ff}
+  .tbtn .badge.monthly{background:rgba(255,159,64,.18);color:#ffbe7d}
+
+  /* 登录入口行 */
+  .loginrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+            padding:12px 14px;border-radius:11px;background:var(--card2);
+            margin-bottom:14px;border-left:3px solid rgba(76,141,255,.5)}
+
+  pre.log{margin-top:12px;background:#0a0e1a;border:1px solid var(--line);border-radius:9px;
+           padding:11px 13px;font-size:11.5px;line-height:1.65;color:#9fb0cf;overflow:auto;
+           max-height:190px;white-space:pre-wrap;word-break:break-all}
+
+  /* 令牌输入条 */
+  .tokbar{display:none;align-items:center;gap:9px;flex-wrap:wrap;
+          background:rgba(255,176,32,.08);border:1px solid rgba(255,176,32,.28);
+          padding:11px 14px;border-radius:10px;margin-bottom:14px;font-size:13px}
+  .tokbar.show{display:flex}
+  .tokbar input{background:#0a0e1a;border:1px solid var(--line);color:var(--txt);
+                padding:7px 11px;border-radius:8px;font:inherit;font-size:13px;min-width:200px;flex:1}
+</style>
+</head>
+<body>
+
+<h1><span class="dot"></span>华为云成长中心 · 积分看板</h1>
+<div class="sub" id="sub">加载中…</div>
+
+<!-- 账号切换：数据来自 points-index.json，点了只切前端展示，不触发采集 -->
+<div class="accbar" id="accbar"></div>
+
+<div id="err"></div>
+
+<div class="grid g3">
+  <div class="card">
+    <div class="label">当前总积分</div>
+    <div class="big" id="beans">—<span class="unit">分</span></div>
+  </div>
+  <div class="card">
+    <div class="label">今日增量 <span class="tag" id="todayTag"></span></div>
+    <div class="delta zero" id="today">—</div>
+  </div>
+  <div class="card">
+    <div class="label">本周增量 <span class="tag" id="weekTag"></span></div>
+    <div class="delta zero" id="week">—</div>
+  </div>
+</div>
+
+<div class="grid g2" style="margin-top:14px">
+  <div class="card">
+    <div class="label">今日任务完成度</div>
+    <div class="big plain" id="tasks" style="font-size:26px">—</div>
+    <div class="barwrap"><div class="bar"><i id="tbar" style="width:0"></i></div></div>
+  </div>
+  <div class="card">
+    <div class="label">数据新鲜度</div>
+    <div id="fresh" style="font-size:13px;color:var(--dim)">—</div>
+    <div id="freshDot" class="freshline"><i></i><span>加载中</span></div>
+  </div>
+</div>
+
+<div class="links" id="links"></div>
+
+<!-- 运行控制：手动触发任务、查看运行状态、切换定时开关 -->
+<h2 style="margin-top:22px">自动化控制 <span class="tag" id="ctlAcct">—</span></h2>
+
+<div class="tokbar" id="tokbar">
+  <span>🔒 首次使用请填入控制令牌（服务器 <code>/root/hwcloud-grow/panel-control.token</code>）：</span>
+  <input id="tokInput" type="password" placeholder="控制令牌" autocomplete="off">
+  <button class="btn sm" id="tokSave">保存</button>
+</div>
+
+<div class="card">
+  <div class="ctlhead">
+    <span class="pill" id="runPill"><span class="hint">读取中…</span></span>
+    <span style="color:var(--dim);font-size:12.5px" id="runDetail">—</span>
+    <span style="flex:1"></span>
+    <label class="sw" title="关闭后 cron 不再自动跑该账号的每日流程">
+      <input type="checkbox" id="swDaily"><span class="track"></span>每日定时
+    </label>
+    <label class="sw" title="关闭后 cron 不再自动跑该账号的每周流程">
+      <input type="checkbox" id="swWeekly"><span class="track"></span>每周定时
+    </label>
+  </div>
+
+  <!-- 华为云登录入口：登录态失效时脚本会停摆，这里给一个直接扫码的入口。
+       扫码页 (scan.html) 由 login-daemon 常驻生成，每 2 分钟自动换码。 -->
+  <div class="loginrow" id="loginRow">
+    <div style="flex:1;min-width:180px">
+      <div class="label">华为云登录态 <span class="tag" id="loginAcc">—</span></div>
+      <div id="loginStatus" style="font-size:13px;color:var(--dim)">读取中…</div>
+    </div>
+    <a href="scan.html" target="_blank" rel="noopener" class="btn primary" id="loginBtn">扫码登录</a>
+  </div>
+
+  <div class="tgrid" id="tgrid"></div>
+
+  <div id="runLogWrap" style="display:none">
+    <div class="label" style="margin-top:16px">实时日志（尾部）</div>
+    <pre class="log" id="runLog"></pre>
+  </div>
+
+  <div id="histWrap" style="display:none">
+    <div class="label" style="margin-top:16px">运行历史 <span style="color:var(--dim);font-weight:400">（最近 30 次，本面板触发与 cron 触发都记）</span></div>
+    <table><tbody id="runHist"></tbody></table>
+  </div>
+</div>
+
+<div class="card" style="margin-top:14px">
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div style="flex:1;min-width:220px">
+      <div class="label">鸿蒙 GitCode 绑定 <span class="tag" id="hmAcc">—</span></div>
+      <div id="hmStatus" style="font-size:13px;color:var(--dim)">点右侧按钮获取当前账号的授权链接</div>
+    </div>
+    <button class="btn primary" id="hmBtn">获取鸿蒙授权链接</button>
+  </div>
+  <div id="hmResult" style="display:none;margin-top:14px"></div>
+  <div class="note">
+    鸿蒙任务「Star 案例仓 +30」要求先绑定 GitCode。点按钮后会现取一条授权链接
+    （有效期约 10 分钟）——用<b>对应账号</b>的 GitCode 登录并点授权，跳回华为云即完成绑定。
+    <br>绑定成功后，脚本就能自动完成 Star，不用再人工干预。
+  </div>
+</div>
+
+<div class="card" style="margin-top:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+  <div style="flex:1;min-width:200px">
+    <div class="label">GitCode 授权</div>
+    <div id="gcStatus" style="font-size:13px;color:var(--dim)">读取中…</div>
+  </div>
+  <a href="gitcode.html" id="gcBtn"
+     style="display:inline-block;padding:10px 20px;border-radius:10px;background:#c2571a;color:#fff;
+            font-size:14px;font-weight:600;text-decoration:none;white-space:nowrap">
+    GitCode 登录
+  </a>
+</div>
+
+<h2>每日积分增量 <a href="#" id="histToggle">显示数值</a></h2>
+<div class="card">
+  <div id="chart"></div>
+  <div class="note">
+    口径：每日增量 = <b>当天积分明细的入账合计</b>（来自成长中心流水，不是余额差）。
+    <br>余额差在漏采集或多天合并时会算错，因此仅在无明细可查时兜底使用。
+    <br>今日增量 = 今日入账合计；本周增量 = 本周一 00:00 至今的入账合计。
+  </div>
+</div>
+
+<div class="grid g2" style="margin-top:22px">
+  <div>
+    <h2>待完成任务 <span id="pendingCnt" class="tag"></span></h2>
+    <div id="pending"></div>
+  </div>
+  <div>
+    <h2>最近积分明细</h2>
+    <div class="card" style="padding:8px 4px">
+      <table><tbody id="flows"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+/**
+ * 账号切换状态。
+ * current 为当前展示的账号 id；记住上次选择，刷新后仍停在同一个号上。
+ * 账号清单来自 points-index.json（采集脚本汇总写入），页面不硬编码账号名。
+ */
+let ACC_IDS = [];
+let ACC_META = {};
+// 正在扫码但还没成功的账号（如误触「＋ 加账号」后留下的）。
+// 它们不在 accountOrder 里，但要显示出来并允许取消——
+// 否则用户会看到一个去不掉的"幽灵账号"（2026-11-11 实际反馈）。
+let PENDING = [];
+let current = localStorage.getItem("hwcloud-acc") || "";
+
+/** 读汇总索引，渲染切换条。索引不存在时降级为单账号展示。 */
+async function loadIndex() {
+  let idx = null;
+  try {
+    const r = await fetch("points-index.json?t=" + Date.now(), { cache: "no-store" });
+    if (r.ok) idx = await r.json();
+  } catch { /* 索引缺失不影响主数据展示 */ }
+
+  ACC_IDS = idx?.accountOrder || [];
+  ACC_META = idx?.accounts || {};
+
+  // 账号清单为空时**不伪造账号**，交给「＋ 加账号」引导（全新安装的首次体验）。
+  // 但数据文件里若已有 main 的采集结果（老部署、索引丢了），仍要显示出来，
+  // 否则用户会以为数据没了——所以按 points-data.json 是否有真实内容来判断。
+  if (!ACC_IDS.length) {
+    try {
+      const d = await (await fetch("points-data.json?t=" + Date.now(), { cache: "no-store" })).json();
+      const hasData = typeof d?.beans === "number" && (d.beans > 0 || (d.todayFlows || []).length > 0);
+      if (hasData) {
+        ACC_IDS = ["main"];
+        ACC_META = { main: { label: d?.account?.nickname || "账号", beans: d.beans, todayGain: d.todayGain, missions: d.missions } };
+      }
+    } catch { /* 拿不到就按"全新安装"处理 */ }
+  }
+  if (ACC_IDS.length && !ACC_IDS.includes(current)) current = ACC_IDS[0];
+  await loadPending();
+  renderAccBar();
+}
+
+/**
+ * 找出「正在扫码但还没成功」的账号。
+ *
+ * 判据：存在 scan-status-*.json（或 main 的无后缀那份），状态是 waiting/need-scan，
+ * 且该 id **不在** accountOrder 里（在的话就是正式账号了）。
+ * 典型来源是误触「＋ 加账号」——扫码没完成就留下一个去不掉的卡片。
+ */
+async function loadPending() {
+  PENDING = [];
+  let list = [];
+  try {
+    // 面板后端把静态目录里的文件列表暴露出来（见 panel-server.py 的 /api/scan-files）
+    const r = await fetch("/api/scan-files?t=" + Date.now(), { cache: "no-store" });
+    if (r.ok) {
+      const j = await r.json();
+      list = j.files || [];
+    }
+  } catch { /* 拿不到就不显示待扫码卡片 */ }
+  for (const f of list) {
+    const acc = f.acc;
+    if (!acc || ACC_IDS.includes(acc)) continue;      // 正式账号不列
+    if (!["waiting", "need-scan", "starting", "checking"].includes(f.status)) continue;
+    PENDING.push({ acc, message: f.message || "等待扫码…" });
+  }
+}
+
+function renderAccBar() {
+  const bar = $("accbar");
+  // 始终显示账号条：即使只有一个账号，也要露出「＋ 加账号」入口。
+  // 全新安装（一个账号都没有）时，这里就是唯一的引导入口（2026-11-11 需求）。
+  bar.style.display = "";
+
+  // 还没有任何账号 → 只显示引导 + 「＋ 加账号」
+  if (!ACC_IDS.length) {
+    bar.innerHTML = `
+      <div class="firstrun">还没有添加账号<br><b>点右侧开始扫码登录华为云</b></div>
+      <button class="accbtn addacc" id="addAccBtn">
+        <div class="av">＋</div>
+        <div class="meta"><div class="nm">加账号</div><div class="sc">扫码登录华为云</div></div>
+      </button>`;
+    const a0 = bar.querySelector("#addAccBtn");
+    if (a0) a0.onclick = openAddAccount;
+    return;
+  }
+
+  bar.innerHTML = ACC_IDS.map((id) => {
+    const m = ACC_META[id] || {};
+    const nm = m.nickname || m.label || id;
+    const has = typeof m.beans === "number";
+    // 分数摘要放在卡片里，不切过去也能对比两个号今天各自赚了多少
+    const sc = has
+      ? `${m.beans} 分 · 今日 ${m.todayGain > 0 ? "+" : ""}${m.todayGain ?? 0}`
+      : "尚未采集";
+    const st = has
+      ? `<span class="st ok">${m.missions ? m.missions.finished : 0}/${m.missions ? m.missions.total : 0}</span>`
+      : `<span class="st no">未登录</span>`;
+    return `<button class="accbtn${id === current ? " on" : ""}" data-id="${esc(id)}">
+      <div class="av">${esc(nm.slice(0, 1).toUpperCase())}</div>
+      <div class="meta"><div class="nm">${esc(nm)}</div><div class="sc">${esc(sc)}</div></div>
+      ${st}
+    </button>`;
+  }).join("") + PENDING.map((p) => `
+    <button class="accbtn pending" data-pending="${esc(p.acc)}" title="${esc(p.message || "等待扫码")}">
+      <div class="av">⏳</div>
+      <div class="meta"><div class="nm">${esc(p.acc)}（待扫码）</div>
+        <div class="sc">${esc(p.message || "等待扫码…")}</div></div>
+      <span class="st wait">取消</span>
+    </button>`).join("") + `
+    <button class="accbtn addacc" id="addAccBtn" title="添加华为云账号（扫码登录）">
+      <div class="av">＋</div>
+      <div class="meta"><div class="nm">加账号</div><div class="sc">扫码登录华为云</div></div>
+    </button>`;
+
+  const add = bar.querySelector("#addAccBtn");
+  if (add) add.onclick = openAddAccount;
+
+  // 待扫码卡片：点一下询问是否取消（清掉这个还没登录成功的账号）
+  bar.querySelectorAll(".accbtn.pending").forEach((b) => {
+    b.onclick = async () => {
+      const acc = b.dataset.pending;
+      if (!confirm(`取消添加账号「${acc}」？\\n\\n该账号还没有扫码成功，取消后会清除它的二维码与状态记录。`)) return;
+      b.disabled = true;
+      try {
+        const r = await api("/api/remove-account", { method: "POST", body: JSON.stringify({ acc }) });
+        if (r.j?.ok) {
+          PENDING = PENDING.filter((x) => x.acc !== acc);
+          renderAccBar();
+        } else {
+          alert("取消失败：" + (r.j?.error || r.status));
+          b.disabled = false;
+        }
+      } catch (e) {
+        alert("请求失败：" + String(e).slice(0, 100));
+        b.disabled = false;
+      }
+    };
+  });
+
+  bar.querySelectorAll(".accbtn:not(.addacc):not(.pending)").forEach((b) => {
+    b.onclick = () => {
+      if (b.dataset.id === current) return;
+      current = b.dataset.id;
+      localStorage.setItem("hwcloud-acc", current);
+      renderAccBar();
+      load();          // 立即换成该账号的数据
+      loadGitCode();   // GitCode 授权状态也是按账号的，一起切过去
+      refreshControl();// 运行控制区同样按账号，不能停留在上一个号
+      // 换号后立刻把鸿蒙区复位，否则旧账号的「已绑定 gitcode_user_main」会挂在新账号上
+      // （2026-11-10 用户看到「账号2 显示已绑定 gitcode_user_main」就是这个原因）
+      hmUrl = "";
+      const hmBox = $("hmResult");
+      if (hmBox) { hmBox.style.display = "none"; hmBox.innerHTML = ""; }
+      $("hmStatus").textContent = "读取绑定状态…";
+      harmonyStatusTick();
+    };
+  });
+}
+
+/**
+ * 「＋ 加账号」：调用后端拉起一次扫码登录，然后在新窗口打开扫码页。
+ *
+ * 默认一次只扫一个账号——后端会挑一个未占用的 id（main → acct2 → acct3…），
+ * 用户不需要关心 id。扫码成功后回到面板刷新，账号会出现在顶部的账号条里。
+ */
+async function openAddAccount() {
+  const add = $("addAccBtn");
+  if (add) { add.disabled = true; add.querySelector(".sc").textContent = "正在拉起扫码…"; }
+  try {
+    const r = await api("/api/add-account", { method: "POST", body: JSON.stringify({}) });
+    if (!r.j?.ok) {
+      // 后端可能附带 hint（如"依赖未安装，请先 npm install"）——
+      // 这类指引比一句"失败"有用得多，直接展示给用户。
+      const msg = (r.j?.error || "HTTP " + r.status) + (r.j?.hint ? "\n\n" + r.j.hint : "");
+      alert("拉起扫码失败：" + msg);
+      return;
+    }
+    // 打开扫码页（带账号参数，让它直接显示这个新账号的码）
+    window.open("scan.html?acc=" + encodeURIComponent(r.j.acc), "_blank", "noopener");
+    // 轮询登录状态，成功后自动刷新账号列表
+    watchNewAccount(r.j.acc);
+  } catch (e) {
+    alert("请求失败：" + String(e).slice(0, 120));
+  } finally {
+    if (add) { add.disabled = false; add.querySelector(".sc").textContent = "扫码登录华为云"; }
+  }
+}
+
+/** 轮询新账号的扫码状态，成功后刷新账号条 */
+function watchNewAccount(acc, tries = 100) {
+  const f = acc === "main" ? "scan-status.json" : `scan-status-${acc}.json`;
+  let n = 0;
+  const tick = async () => {
+    n++;
+    try {
+      const d = await (await fetch(f + "?t=" + Date.now(), { cache: "no-store" })).json();
+      if (d.status === "done" && d.ok) {
+        await loadIndex();   // 账号清单变了，重新拉
+        load();
+        renderAccBar();
+        return;
+      }
+      if (["error", "expired"].includes(d.status) && n > 2) return;
+    } catch { /* 文件还没生成，继续等 */ }
+    if (n < tries) setTimeout(tick, 3000);
+  };
+  setTimeout(tick, 3000);
+}
+
+/** 账号对应的看板文件名：主号沿用 points-data.json，其余带后缀。 */
+function dataFileFor(id) {
+  return id === "main" ? "points-data.json" : `points-data-${id}.json`;
+}
+
+async function load() {
+  let d;
+  try {
+    const r = await fetch(dataFileFor(current) + "?t=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    d = await r.json();
+  } catch (e) {
+    // 该账号还没采集过（例如新号尚未登录），给可执行的提示而不是空白页
+    const m = ACC_META[current] || {};
+    $("sub").textContent = ACC_IDS.length ? "暂无该账号数据" : "还没有添加账号";
+    // 必须清空上一个账号遗留的数值，否则切过来还显示着别个号的分数，很容易看串
+    $("beans").innerHTML = `—<span class="unit">分</span>`;
+    $("today").textContent = "—";   $("today").className = "delta zero";  $("todayTag").textContent = "";
+    $("week").textContent = "—";    $("week").className = "delta zero";   $("weekTag").textContent = "";
+    $("tasks").textContent = "— / —";  $("tbar").style.width = "0";
+    $("freshDot").className = "freshline err";
+    $("freshDot").querySelector("span").textContent = "无数据";
+    $("fresh").innerHTML = "—";
+    $("chart").innerHTML = '<div class="empty">暂无历史数据</div>';
+    $("pendingCnt").textContent = "";
+    $("pending").innerHTML = '<div class="empty">暂无任务数据</div>';
+    $("flows").innerHTML = '<tr><td class="empty">暂无明细</td></tr>';
+    $("links").innerHTML = "";
+    $("err").innerHTML = `<div class="err">${esc(m.nickname || m.label || (ACC_IDS.length ? current : "该账号"))}还没有积分数据。
+      <br>通常是该账号尚未登录或还没跑过采集：先在 <a href="scan.html" style="color:#8fb4ff">扫码登录页</a>
+      用该账号扫码，登录成功后等下一次采集（或手动跑 <code>node scripts/points-snapshot.mjs</code>，需带
+      <code>HWCLOUD_ACCOUNT=${esc(current)}</code>）。</div>`;
+    return;
+  }
+
+  $("err").innerHTML = "";
+  $("sub").textContent = `${d.todayDate} · 最后采集 ${new Date(d.updatedAt).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}`;
+  $("beans").innerHTML = `${d.beans ?? "—"}<span class="unit">分</span>`;
+
+  const tg = d.todayGain || 0;
+  $("today").textContent = (tg > 0 ? "+" : "") + tg + (tg > 0 ? " 分" : "");
+  $("today").className = "delta" + (tg > 0 ? "" : " zero");
+  $("todayTag").textContent = (d.todayFlows || []).length + " 笔";
+
+  const wg = d.weekGain || 0;
+  $("week").textContent = (wg > 0 ? "+" : "") + wg + (wg > 0 ? " 分" : "");
+  $("week").className = "delta" + (wg > 0 ? "" : " zero");
+  $("weekTag").textContent = d.weekStart ? d.weekStart.slice(5) + " 起" : "";
+
+  // 数据新鲜度：定时任务每天 08:30（北京时间）跑一次，超过 26 小时视为过期
+  const ageH = d.updatedAt ? (Date.now() - new Date(d.updatedAt).getTime()) / 36e5 : Infinity;
+  const fd = $("freshDot");
+  if (!isFinite(ageH)) {
+    fd.className = "freshline err"; fd.querySelector("span").textContent = "时间未知";
+  } else if (ageH < 2) {
+    fd.className = "freshline ok"; fd.querySelector("span").textContent = `${ageH.toFixed(1)} 小时前采集 · 正常`;
+  } else if (ageH < 26) {
+    fd.className = "freshline ok"; fd.querySelector("span").textContent = `${ageH.toFixed(0)} 小时前采集`;
+  } else {
+    fd.className = "freshline stale"; fd.querySelector("span").textContent = `${(ageH / 24).toFixed(1)} 天未更新 · 定时任务可能未运行`;
+  }
+  $("fresh").innerHTML = `下次自动采集：每日 08:30（北京时间）<br>打开页面时也会实时刷新`;
+
+  const f = d.missions?.finished || 0, t = d.missions?.total || 0;
+  $("tasks").textContent = `${f} / ${t}`;
+  $("tbar").style.width = t ? (f / t * 100) + "%" : "0";
+
+  // 快捷入口
+  const L = d.links || {};
+  const items = [
+    ["成长中心", L.grow], ["服务器查看", L.console || "https://console.huaweicloud.com"],
+    ["发布作品", L.gallery], ["写文章", L.bbs], ["扫码/登录", L.scan],
+  ].filter(([, u]) => u);
+  $("links").innerHTML = items.map(([n, u]) =>
+    `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(n)} ↗</a>`).join("");
+
+  // 每日增量图
+  const daily = (d.daily || []).slice(-30);
+  if (!daily.length) {
+    $("chart").innerHTML = '<div class="empty">暂无历史数据（明天起会累积）</div>';
+  } else {
+    const max = Math.max(...daily.map((x) => Math.max(x.delta, 0)), 10);
+    let showNum = false;
+    const render = () => {
+      $("chart").innerHTML = `<div class="barscroll"><div class="bars">` + daily.map((x) => {
+        const h = Math.max((Math.max(x.delta, 0) / max) * 78, 3);
+        return `<div class="b" style="height:${h}px" title="${esc(x.date)} +${x.delta}">
+          ${showNum ? `<em>+${x.delta}</em>` : ""}
+          <span>${esc(x.date.slice(5))}</span></div>`;
+      }).join("") + `</div></div>`;
+    };
+    render();
+    $("histToggle").onclick = (e) => {
+      e.preventDefault(); showNum = !showNum;
+      e.target.textContent = showNum ? "隐藏数值" : "显示数值";
+      render();
+    };
+  }
+
+  // 待办任务
+  const pend = d.missions?.pending || [];
+  $("pendingCnt").textContent = pend.length + " 项";
+  $("pending").innerHTML = pend.length
+    ? pend.map((m) => `<div class="task">
+        <div class="l"><a href="${esc(m.url || "#")}" target="_blank" rel="noopener">${esc(m.title)}</a></div>
+        <div class="r">+${m.bonus}</div></div>`).join("")
+    : '<div class="empty">今日任务已全部完成 🎉</div>';
+
+  // 明细
+  const flows = d.recentFlows || [];
+  $("flows").innerHTML = flows.length
+    ? flows.map((x) => `<tr>
+        <td class="t">${esc((x.time || "").slice(5, 16))}</td>
+        <td>${esc(x.source)}</td>
+        <td class="pts${x.points < 0 ? " neg" : ""}">${x.points > 0 ? "+" : ""}${x.points}</td>
+      </tr>`).join("")
+    : '<tr><td class="empty">暂无明细</td></tr>';
+}
+
+async function boot() {
+  await loadIndex();     // 先定下 current 是哪个账号
+  await load();
+  loadGitCode();         // 再读 GitCode 状态，否则拿到的是空账号文件名
+  initControl();         // 运行控制区（跟随 current 账号）
+}
+boot();
+setInterval(load, 60000);   // 每分钟自动刷新当前账号
+setInterval(loadIndex, 60000); // 顺带刷新切换条上的分数摘要
+
+// ---- 运行控制（手动跑任务 / 定时开关 / 实时状态）----
+// 写操作原来要带控制令牌；用户明确要求「自己用的面板别每次填」，服务端已
+// 默认关闭鉴权（PANEL_REQUIRE_TOKEN=1 可恢复），这里也就不再弹令牌条。
+const TOK_KEY = "hwcloud-ctl-token";
+let ctlTimer = null;
+
+function tok() { return localStorage.getItem(TOK_KEY) || ""; }
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, {
+    ...opts,
+    headers: { "Content-Type": "application/json", "X-Control-Token": tok(), ...(opts.headers || {}) },
+  });
+  let j = null;
+  try { j = await r.json(); } catch {}
+  return { status: r.status, j };
+}
+
+function initControl() {
+  // 不再强制填令牌；仅当服务端要求而本地没有时才显示输入条
+  const tb = $("tokbar"), inp = $("tokInput");
+  tb.classList.remove("show");
+  $("tokSave").onclick = () => {
+    const v = inp.value.trim();
+    if (!v) return;
+    localStorage.setItem(TOK_KEY, v);
+    tb.classList.remove("show");
+    refreshControl();
+  };
+
+  $("swDaily").onchange = (e) => setSwitch("daily", e.target.checked);
+  $("swWeekly").onchange = (e) => setSwitch("weekly", e.target.checked);
+  $("hmBtn").onclick = harmonyBind;
+
+  refreshControl();
+  // 控制区刷新频率比积分高：运行状态要能及时反映
+  if (ctlTimer) clearInterval(ctlTimer);
+  ctlTimer = setInterval(refreshControl, 5000);
+  // 鸿蒙授权链接自动续期 + 绑定状态：每 60 秒看一次
+  // （服务端有 60 秒缓存窗口，命中时毫秒返回，不会每次真开浏览器）
+  if (hmTimer) clearInterval(hmTimer);
+  hmTimer = setInterval(harmonyStatusTick, 60000);
+  // 先给个「读取中」提示再拉数据：首次要真查绑定状态（约 18s），
+  // 不提示的话用户会以为这功能坏了（2026-11-10 反馈「怎么一直不动」）
+  $("hmStatus").textContent = "读取绑定状态…";
+  harmonyStatusTick();
+  // 华为云登录态：每 15 秒刷新（纯读文件，零成本）
+  if (loginTimer) clearInterval(loginTimer);
+  loginTimer = setInterval(loginTick, 15000);
+  loginTick();
+}
+
+async function setSwitch(field, value) {
+  const r = await api("/api/schedule", {
+    method: "POST",
+    body: JSON.stringify({ acc: current, field, value }),
+  });
+  if (!r.j?.ok) {
+    // 失败要把开关拨回去，否则界面状态和真实状态不一致
+    $("swDaily").checked = r.j?.schedule ? r.j.schedule[current]?.daily : $("swDaily").checked;
+    alert("切换失败：" + (r.j?.error || r.status));
+  }
+  refreshControl();
+}
+
+/** 渲染运行状态pill + 定时开关 + 任务按钮 + 日志 */
+async function refreshControl() {
+  // 未添加任何账号时，控制区无从展开（不知道操作谁），给明确引导而不是"读取中…"。
+  // 注意顺序：这里必须先判 ACC_IDS——因为无账号时 current 可能是空串，
+  // 若先执行 `if (!current) return` 就会静默返回，界面永远停在"读取中…"
+  // （2026-11-11 发布版实测踩到）。
+  if (!ACC_IDS.length) {
+    $("ctlAcct").textContent = "—";
+    $("runPill").className = "pill idle";
+    $("runPill").textContent = "尚未添加账号";
+    $("runDetail").textContent = "点上方「＋ 加账号」扫码登录后可在此运行任务";
+    if ($("loginAcc")) $("loginAcc").textContent = "—";
+    if ($("loginStatus")) $("loginStatus").textContent = "尚未添加账号";
+    if ($("hmAcc")) $("hmAcc").textContent = "—";
+    if ($("hmStatus")) $("hmStatus").textContent = "添加账号并登录后可获取授权链接";
+    const g = $("tgrid");
+    if (g) { g.className = "tgroups"; g.innerHTML = '<div class="empty">先添加账号，任务按钮会自动出现</div>'; }
+    return;
+  }
+  if (!current) return;
+  $("ctlAcct").textContent = ACC_META[current]?.nickname || ACC_META[current]?.label || current;
+  const hmAccEl = $("hmAcc");
+  if (hmAccEl) hmAccEl.textContent = current === "main" ? "主号" : "账号2";
+
+  const [st, tk] = await Promise.all([
+    api("/api/state"),
+    api("/api/tasks/" + encodeURIComponent(current)),
+  ]);
+
+  if (st.j?.ok) {
+    const s = st.j.accounts?.[current];
+    if (s) {
+      const pill = $("runPill"), det = $("runDetail");
+      if (s.running && s.current) {
+        pill.className = "pill busy";
+        pill.innerHTML = `<span class="spin"></span>运行中 · ${esc(s.current.title)}`;
+        const secs = Math.floor((Date.now() - new Date(s.current.startedAt).getTime()) / 1000);
+        det.textContent = `已跑 ${fmtDur(secs)}（pid ${s.current.pid}）`;
+      } else if (s.last) {
+        const ok = s.last.exitCode === 0;
+        pill.className = "pill " + (ok ? "ok" : "bad");
+        pill.textContent = ok ? "空闲 · 上次成功" : `空闲 · 上次异常(退出码 ${s.last.exitCode})`;
+        det.textContent = `${s.last.title} · ${fmtWhen(s.last.finishedAt || s.last.startedAt)}`;
+      } else {
+        pill.className = "pill idle";
+        pill.textContent = "空闲 · 本次启动后未跑过";
+        det.textContent = "可用下方按钮手动运行";
+      }
+      $("swDaily").checked = s.schedule?.daily !== false;
+      $("swWeekly").checked = s.schedule?.weekly !== false;
+
+      const tail = s.tail || [];
+      $("runLogWrap").style.display = tail.length ? "" : "none";
+      $("runLog").textContent = tail.join("\n");
+
+      renderHistory(s.history || [], s.running);
+    }
+  }
+
+  if (tk.j?.ok) {
+    const running = st.j?.accounts?.[current]?.running;
+    const tasks = tk.j.tasks || [];
+    // 按周期分组展示（每日/每周/每月/工具）。
+    // 一屏十几个按钮平铺时分不清"每天必做"与"本周做完就行"，分组后一目了然。
+    // full-daily（完整每日流程）单独置顶，不归入分组。
+    const full = tasks.find((t) => t.full);
+    const GROUP = [
+      ["daily", "每日任务"],
+      ["weekly", "每周任务"],
+      ["monthly", "每月任务"],
+      ["utility", "工具"],
+    ];
+    const btnHtml = (t) => {
+      const done = t.done === true;
+      // 已完成的徽标按周期着色；未完成显示积分
+      const periodCls = t.period === "daily" ? "daily" : t.period === "weekly" ? "weekly" : t.period === "monthly" ? "monthly" : "";
+      const badge = t.full ? "" :
+        done ? `<span class="badge ${periodCls}">已完成</span>` :
+        t.points ? `<span class="badge pt">+${t.points}</span>` : "";
+      const cls = `tbtn${t.full ? " full" : ""}${done ? " done" : ""}${periodCls ? " p-" + periodCls : ""}`;
+      return `<button class="${cls}" data-key="${esc(t.key)}"${running ? " disabled" : ""}>
+        ${badge}<span class="tt">${esc(t.title)}</span><span class="td">${esc(t.desc)}</span></button>`;
+    };
+    let html = full ? `<div class="tgrid">${btnHtml(full)}</div>` : "";
+    for (const [key, label] of GROUP) {
+      const items = tasks.filter((t) => !t.full && t.period === key);
+      if (!items.length) continue;
+      html += `<div class="tgroup">
+        <div class="tgroup-h">${label}<span>${items.length}</span></div>
+        <div class="tgrid">${items.map(btnHtml).join("")}</div>
+      </div>`;
+    }
+    // 兜底：period 不在预定义分组里的任务也要显示出来，别漏
+    const known = new Set(["daily", "weekly", "monthly", "utility"]);
+    const rest = tasks.filter((t) => !t.full && !known.has(t.period));
+    if (rest.length) {
+      html += `<div class="tgroup"><div class="tgroup-h">其他<span>${rest.length}</span></div>
+        <div class="tgrid">${rest.map(btnHtml).join("")}</div></div>`;
+    }
+    const wrap = $("tgrid");
+    wrap.className = "tgroups";
+    wrap.innerHTML = html;
+    wrap.querySelectorAll(".tbtn").forEach((b) => {
+      b.onclick = () => runTask(b.dataset.key, b);
+    });
+  }
+}
+
+async function runTask(key, btn) {
+  if (!tok()) { $("tokbar").classList.add("show"); alert("请先填入控制令牌"); return; }
+  btn.disabled = true;
+  const r = await api("/api/run", { method: "POST", body: JSON.stringify({ acc: current, task: key }) });
+  if (!r.j?.ok) {
+    // 后端会带 hint（如"依赖未安装，请先 npm install"），一并展示——
+    // 这类指引比一句"启动失败"有用得多（2026-11-11 实测：缺依赖时
+    // 旧版返回 ok:true 让用户以为在跑，实际任务瞬间崩）。
+    alert("启动失败：" + (r.j?.error || r.status) + (r.j?.hint ? "\n\n" + r.j.hint : ""));
+    btn.disabled = false;
+  }
+  refreshControl();
+}
+
+// ---- 鸿蒙 GitCode 绑定 ----
+// 链接有效期约 10 分钟。后台有预热守护持续补充（每 30 分钟检查、快过期就换新的），
+// 所以正常打开面板时缓存里就有现成的，点一下立刻拿到。
+// 这里再叠一层：页面自己定时问 /api/harmony-status（零成本），
+// 发现手上这条快过期就自动换成新的——用户永远不用管时效。
+let hmUrl = "";
+let hmTimer = null;
+let loginTimer = null;
+
+async function harmonyBind() {
+  const btn = $("hmBtn"), box = $("hmResult");
+  btn.disabled = true;
+  btn.textContent = "获取中…";
+  box.style.display = "";
+  box.innerHTML = `<div class="note">正在取授权链接…</div>`;
+  try {
+    const r = await api("/api/harmony-oauth/" + encodeURIComponent(current));
+    renderHarmony(r.j || {}, r.status);
+  } catch (e) {
+    box.innerHTML = `<div class="err">请求失败：${esc(String(e).slice(0, 120))}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "获取鸿蒙授权链接";
+  }
+}
+
+/** 华为云登录态显示：从 scan-status 读，并把扫码入口指向当前账号 */
+function loginTick() {
+  if (!current) return;
+  const isMain = current === "main";
+  $("loginAcc").textContent = isMain ? "主号" : "账号2";
+  // scan.html 用 localStorage 的 hwcloud-acc 决定读哪份二维码/状态文件，
+  // 而该值就是面板当前的账号选择——所以直接打开即可对应，无需传参。
+  $("loginBtn").href = "scan.html";
+
+  const f = isMain ? "scan-status.json" : "scan-status-acct2.json";
+  fetch(f + "?t=" + Date.now(), { cache: "no-store" })
+    .then((r) => r.json())
+    .then((j) => {
+      const el = $("loginStatus");
+      const btn = $("loginBtn");
+      const at = j.at ? new Date(j.at).toLocaleTimeString("zh-CN", { hour12: false }) : "";
+      if (j.status === "done" || j.ok === true) {
+        el.innerHTML = `<span style="color:#2ecc71">✅ 登录有效</span> <span style="color:var(--dim)">（${esc(at)} 确认）</span>`;
+        btn.className = "btn";
+        btn.textContent = "重新登录";
+      } else if (j.status === "waiting" || j.status === "need-scan") {
+        el.innerHTML = `<span style="color:#ffb020">⚠️ 等待扫码</span> <span style="color:var(--dim)">点右侧扫码</span>`;
+        btn.className = "btn primary";
+        btn.textContent = "扫码登录";
+      } else {
+        el.textContent = j.message || "状态未知，可点右侧扫码";
+      }
+    })
+    .catch(() => { $("loginStatus").textContent = "读取失败"; });
+}
+
+/** 绑定状态刷新：已绑定就明确显示账号名，不再催着授权 */
+async function harmonyStatusTick() {  if (!current) return;
+  // 记录发起时的账号：请求要几十秒（首次真查绑定状态），
+  // 期间用户可能切了账号。回调里若直接写 DOM，会把旧账号的结果画到新账号上
+  // ——2026-11-10 用户看到「账号2 显示已绑 gitcode_user_main」就是这个竞态。
+  const want = current;
+  try {
+    const r = await api("/api/harmony-status/" + encodeURIComponent(want));
+    if (want !== current) return; // 期间已切号，丢弃这次结果
+    const j = r.j || {};
+    if (!j.ok) return;
+    if (j.bound) {
+      $("hmStatus").innerHTML = `<span style="color:#2ecc71">✅ 已绑定 GitCode：${esc(j.login || "—")}</span>
+        <span style="color:var(--dim)">（脚本可自动完成 Star，无需再操作）</span>`;
+      const box = $("hmResult");
+      hmUrl = "";
+      // 已绑定时清掉之前的授权链接提示，免得用户以为还要再点
+      if (box) { box.style.display = "none"; box.innerHTML = ""; }
+      return;
+    }
+    if (j.loggedIn === false) {
+      $("hmStatus").innerHTML = `<span style="color:#ff8080">华为云登录态失效，请先扫码登录</span>`;
+      return;
+    }
+    if (!j.cached) { $("hmStatus").textContent = "尚未生成授权链接，点右侧按钮获取"; return; }
+    if (!j.fresh && hmUrl) {
+      // 手上这条快过期了：自动换一条新的，用户无感
+      const r2 = await api("/api/harmony-oauth/" + encodeURIComponent(want));
+      if (want !== current) return;
+      renderHarmony(r2.j || {}, r2.status, true);
+      return;
+    }
+    if (j.url && j.url !== hmUrl) renderHarmony({ ok: true, url: j.url, leftSec: j.leftSec }, 200, true);
+  } catch {}
+}
+
+function renderHarmony(j, status, silent) {
+  const box = $("hmResult");
+  if (j.ok && j.alreadyBound) {
+    $("hmStatus").innerHTML = `<span style="color:#2ecc71">✅ ${esc(j.note || "已绑定")}</span>`;
+    box.style.display = silent ? "none" : "";
+    box.innerHTML = `<div class="note">该账号已绑定，脚本可直接跑 Star 任务，无需再次授权。</div>`;
+  } else if (j.ok && j.url) {
+    hmUrl = j.url;
+    $("hmStatus").innerHTML = `<span style="color:#ffb020">⚠️ 未绑定，点下方链接完成授权</span>
+      <span style="color:var(--dim)">${j.leftSec ? "（本条还剩 " + Math.round(j.leftSec / 60) + " 分钟，过期会自动换新）" : ""}</span>`;
+    box.style.display = "";
+    box.innerHTML = `
+      <a href="${esc(j.url)}" target="_blank" rel="noopener"
+         style="display:block;padding:14px 18px;border-radius:11px;background:linear-gradient(135deg,#4c8dff,#7c5cff);
+                color:#fff;font-weight:600;text-decoration:none;text-align:center">
+        👉 点这里登录 GitCode 并授权
+      </a>
+      <div class="note">授权页要求登录 GitCode，请确认是<b>${esc(current === "main" ? "主号" : "账号2")}</b>对应的账号；
+        点「授权」后跳回华为云即绑定成功。</div>`;
+  } else {
+    // 失败时区分「要先登录华为云」与「其它错误」——
+    // 需要登录时直接给扫码入口，用户点一下就能去登录，回来再取链接。
+    if (j.needLogin) {
+      $("hmStatus").innerHTML = `<span style="color:#ffb020">需先登录华为云</span>`;
+      box.style.display = "";
+      box.innerHTML = `
+        <a href="scan.html" target="_blank" rel="noopener"
+           style="display:block;padding:14px 18px;border-radius:11px;background:linear-gradient(135deg,#4c8dff,#7c5cff);
+                  color:#fff;font-weight:600;text-decoration:none;text-align:center">
+          👉 先扫码登录华为云
+        </a>
+        <div class="note">绑定 GitCode 需要有效的华为云登录态。登录完成后回到本页，
+          再点「获取鸿蒙授权链接」即可。</div>`;
+      return;
+    }
+    $("hmStatus").innerHTML = `<span style="color:#ff8080">获取失败</span>`;
+    box.style.display = "";
+    box.innerHTML = `<div class="err">${esc(j.error || ("HTTP " + status))}</div>`;
+  }
+}
+
+function fmtDur(s) {
+  if (s < 60) return s + " 秒";
+  if (s < 3600) return Math.floor(s / 60) + " 分 " + (s % 60) + " 秒";
+  return Math.floor(s / 3600) + " 小时 " + Math.floor((s % 3600) / 60) + " 分";
+}
+
+/**
+ * 运行历史用的紧凑耗时：`7m03s` / `1h25m` / `42s`。
+ * 历史表的耗时列在手机上很窄，完整中文（"7 分 3 秒"）会被截断成 "7 分 3…"，
+ * 反而看不出实际时长（2026-11-11 移动端截图确认）。紧凑写法更省空间也更易读。
+ */
+function fmtDurShort(s) {
+  if (s < 60) return s + "s";
+  if (s < 3600) return `${Math.floor(s / 60)}m${String(s % 60).padStart(2, "0")}s`;
+  return `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}m`;
+}
+/** 历史表用的短时间：`11/11 17:00`（去掉秒与年份，窄屏友好） */
+function fmtWhenShort(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const p = (n) => String(n).padStart(2, "0");
+  const s = d.toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false });
+  // toLocaleString 形如 "2026/11/11 17:00:31"，取 MM/DD HH:mm
+  const m = s.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})\s+(\d{1,2}):(\d{2})/);
+  if (m) return `${m[2]}/${m[3]} ${p(m[4])}:${m[5]}`;
+  return s.slice(5, 16);
+}
+
+function fmtWhen(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false });
+}
+
+/** 运行历史表：时间 / 任务 / 耗时 / 结果 */
+function renderHistory(hs, running) {
+  const wrap = $("histWrap");
+  if (!hs.length) { wrap.style.display = "none"; return; }
+  wrap.style.display = "";
+  $("runHist").innerHTML = hs.map((h) => {
+    const st = new Date(h.startedAt).getTime();
+    // 还没结束的显示「进行中」；已结束的算出耗时
+    let res, dur;
+    if (!h.finishedAt) {
+      const stillRunning = Date.now() - st < 6 * 3600 * 1000;
+      res = stillRunning ? `<span class="hst res busy">进行中</span>` : `<span class="hst res bad">中断</span>`;
+      dur = stillRunning ? fmtDurShort(Math.floor((Date.now() - st) / 1000)) : "—";
+    } else {
+      const secs = Math.max(0, Math.round((new Date(h.finishedAt) - st) / 1000));
+      dur = fmtDurShort(secs);
+      const ok = h.exitCode === 0;
+      // 负退出码是信号（如 -9 = SIGKILL、-15 = SIGTERM），直接显示数字不易懂；
+      // 转成简短名称，也顺带缩短宽度（移动端更容易放下）。
+      const codeTxt =
+        h.exitCode == null ? ""
+        : h.exitCode < 0 ? `(${{ "-9": "被杀", "-15": "终止", "-1": "启动失败" }[String(h.exitCode)] || "信号" + Math.abs(h.exitCode)})`
+        : `(${h.exitCode})`;
+      res = ok
+        ? `<span class="hst res">成功</span>`
+        : `<span class="hst res bad">失败${codeTxt}</span>`;
+    }
+    return `<tr>
+      <td class="hst">${esc(fmtWhenShort(h.startedAt))}</td>
+      <td>${esc(h.title)}</td>
+      <td class="hst">${esc(dur)}</td>
+      <td>${res}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ---- GitCode 登录态（独立文件，与华为云扫码页互不干扰） ----
+function loadGitCode(){
+  // 每个账号有自己的 GitCode 凭证与状态文件：主号 gitcode-status.json，
+  // 其余 gitcode-status-<id>.json，避免把两个号的授权剩余天数混在一起显示。
+  // 注意：必须等 loadIndex() 把 current 定下来之后再调用，否则会拼出
+  // "gitcode-status-.json" 这种畸形文件名、首屏一直显示「读取失败」。
+  if (!current) return;
+  var file = current === 'main' ? 'gitcode-status.json' : 'gitcode-status-' + current + '.json';
+  fetch(file + '?t=' + Date.now(), {cache:'no-store'})
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      var el = document.getElementById('gcStatus');
+      var btn = document.getElementById('gcBtn');
+      var d = (typeof j.daysLeft === 'number') ? j.daysLeft : null;
+      if (j.status === 'waiting') {
+        el.innerHTML = '<span style="color:#f66f6a">⚠️ 需要授权</span> · 点击右侧按钮完成';
+        btn.style.background = '#f66f6a';
+      } else if (j.status === 'done') {
+        el.innerHTML = '<span style="color:#41ba41">✅ 刚刚授权成功</span>';
+        btn.style.background = '#41ba41';
+      } else if (j.status === 'valid' && d !== null) {
+        var txt = '✅ 有效，剩余 ' + d.toFixed(1) + ' 天';
+        if (d <= 2) { el.innerHTML = '<span style="color:#fa9841">' + txt + '（建议续期）</span>'; btn.style.background = '#fa9841'; }
+        else { el.innerHTML = txt; btn.style.background = '#c2571a'; }
+      } else if (j.status === 'valid') {
+        // 个人访问令牌长期有效，没有剩余天数，别显示成「状态未知」
+        el.innerHTML = '<span style="color:#41ba41">✅ ' + (j.message || '有效') + '</span>';
+        btn.style.background = '#41ba41';
+      } else {
+        el.textContent = j.message || '状态未知';
+      }
+    })
+    .catch(function(){ document.getElementById('gcStatus').textContent = '读取失败'; });
+}
+setInterval(loadGitCode, 30000);
+</script>
+</body>
+</html>

@@ -1,0 +1,155 @@
+{
+  "spec_version": "1.0.0",
+  "generated_at": "2026-07-02T10:30:00+08:00",
+  "portal": {
+    "name": "华为云开发者成长中心",
+    "url": "https://developer.huaweicloud.com/grow",
+    "well_known": "https://developer.huaweicloud.com/.well-known/grow-agents.json"
+  },
+  "user": {
+    "authenticated": true,
+    "points": 120,
+    "points_detail_url": "https://developer.huaweicloud.com/grow#/points/detail",
+    "redeem_history_url": "https://developer.huaweicloud.com/grow#/points/redeem"
+  },
+  "checkin": {
+    "enabled": true,
+    "streak_days": 3,
+    "today_checked_in": false,
+    "daily_reward_points": 5,
+    "weekly_rewards": [5, 5, 5, 5, 5, 5, 35]
+  },
+  "tasks": [
+    {
+      "task_id": "T_CODEARTS_QA",
+      "title": "使用智能问答",
+      "description": "在华为云码道（CodeArts）代码智能体中使用智能问答功能",
+      "points": 30,
+      "difficulty": 1,
+      "type": "recurring",
+      "recurrence": "daily",
+      "status": "available",
+      "risk_level": "low",
+      "human_required": false,
+      "estimated_minutes": 3,
+      "completed_at": null,
+      "next_available_at": null,
+      "behaviors": [
+        {
+          "behavior_id": "BEH_CODEARTS_SEND_MSG",
+          "description": "在码道对话框发送一次对话",
+          "product": "codearts",
+          "status": "pending",
+          "reported_at": null,
+          "completed_at": null,
+          "entry_url": "https://codearts.example.com/chat?grow_task=T_CODEARTS_QA&grow_behavior=BEH_CODEARTS_SEND_MSG&grow_source=developer-grow"
+        }
+      ],
+      "entry_url": "https://codearts.example.com/chat?grow_task=T_CODEARTS_QA&grow_behavior=BEH_CODEARTS_SEND_MSG&grow_source=developer-grow",
+      "agent_prompt": "请帮我完成华为云成长中心任务 T_CODEARTS_QA（使用智能问答，+30积分，每日一次）。在码道对话框发送一次技术问题，完成后回到 https://developer.huaweicloud.com/grow 刷新确认积分到账。",
+      "agent_steps": [
+        {
+          "order": 1,
+          "action": "open_url",
+          "title": "打开码道对话页",
+          "params": {
+            "url": "https://codearts.example.com/chat?grow_task=T_CODEARTS_QA&grow_behavior=BEH_CODEARTS_SEND_MSG&grow_source=developer-grow"
+          }
+        },
+        {
+          "order": 2,
+          "action": "send_message",
+          "title": "发送一条技术问题",
+          "params": {
+            "product": "codearts",
+            "hint": "例如：如何使用 Python 连接 MySQL？"
+          }
+        },
+        {
+          "order": 3,
+          "action": "wait_settlement",
+          "title": "等待积分结算",
+          "params": {
+            "timeout_minutes": 10
+          }
+        }
+      ],
+      "tags": ["codearts", "daily", "low-risk"]
+    },
+    {
+      "task_id": "T_DEVSPACE_TOUR",
+      "title": "体验开发者空间",
+      "description": "访问开发者空间核心功能，了解开发者空间",
+      "points": 20,
+      "difficulty": 1,
+      "type": "one_time",
+      "recurrence": "once",
+      "status": "completed",
+      "risk_level": "low",
+      "human_required": false,
+      "estimated_minutes": 5,
+      "completed_at": "2026-07-01T15:20:00+08:00",
+      "behaviors": [
+        {
+          "behavior_id": "BEH_DEVSPACE_TOUR",
+          "description": "访问开发者空间核心页面",
+          "product": "devspace",
+          "status": "completed",
+          "reported_at": "2026-07-01T15:18:00+08:00",
+          "completed_at": "2026-07-01T15:20:00+08:00",
+          "entry_url": "https://developer.huaweicloud.com/developerSpace?grow_task=T_DEVSPACE_TOUR&grow_behavior=BEH_DEVSPACE_TOUR&grow_source=developer-grow"
+        }
+      ],
+      "tags": ["devspace", "one-time"]
+    },
+    {
+      "task_id": "T_FORUM_ANSWER",
+      "title": "回答问题且被采纳",
+      "description": "在华为云开发者论坛问答专区回答问题，并且答案被采纳",
+      "points": 60,
+      "difficulty": 3,
+      "type": "recurring",
+      "recurrence": "daily",
+      "status": "available",
+      "risk_level": "high",
+      "human_required": true,
+      "estimated_minutes": 30,
+      "behaviors": [
+        {
+          "behavior_id": "BEH_FORUM_ANSWER_ADOPTED",
+          "description": "回答问题且被采纳",
+          "product": "forum",
+          "status": "pending",
+          "entry_url": "https://bbs.huaweicloud.com/?grow_task=T_FORUM_ANSWER&grow_behavior=BEH_FORUM_ANSWER_ADOPTED&grow_source=developer-grow"
+        }
+      ],
+      "tags": ["forum", "daily", "human-required"]
+    }
+  ],
+  "rewards": [
+    {
+      "reward_id": "R_VOUCHER_5",
+      "title": "5元代金券",
+      "points_cost": 50,
+      "stock": 116575,
+      "status": "available"
+    },
+    {
+      "reward_id": "R_VOUCHER_50",
+      "title": "50元代金券",
+      "points_cost": 500,
+      "stock": 11649,
+      "status": "available"
+    }
+  ],
+  "agent_hints": {
+    "settlement_delay_minutes": 10,
+    "polling_interval_seconds": 30,
+    "safety_rules": [
+      "不要重复完成今日已做的循环任务",
+      "遇到付费、实名、审核类任务请询问用户",
+      "使用用户已登录的浏览器会话，不要索要密码"
+    ],
+    "skill_install": "npx skills add developer-ecosystem/hwcloud-grow"
+  }
+}

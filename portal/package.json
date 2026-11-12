@@ -1,0 +1,23 @@
+{
+  "name": "hwcloud-grow-portal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-static.mjs",
+    "dev": "node scripts/build-static.mjs && npx --yes serve dist -p 5173",
+    "preview": "npx --yes serve dist -p 4173",
+    "postinstall": "npm install --prefix ../runner",
+    "login": "npm --prefix ../runner run login",
+    "agent": "node scripts/build-static.mjs && npm --prefix ../runner run agent",
+    "agent:headless": "npm --prefix ../runner run agent:headless",
+    "agent:qa": "node scripts/build-static.mjs && node ../runner/scripts/agent-run.mjs --task=T_CODEARTS_QA",
+    "deploy": "python scripts/deploy-portal.py",
+    "pack:runner": "node scripts/pack-runner.mjs",
+    "report": "npm --prefix ../runner run report"
+  },
+  "devDependencies": {
+    "playwright": "^1.51.0",
+    "vite": "^6.0.0"
+  }
+}

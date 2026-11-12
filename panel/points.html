@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>华为云成长中心 · 积分看板</title>
+<style>
+  :root{
+    --bg:#0b1020; --card:#151b2e; --card2:#1b2338; --line:#28324c;
+    --txt:#e8ecf5; --dim:#8b98b8; --acc:#4c8dff; --ok:#2ecc71; --warn:#ffb020;
+    --grad:linear-gradient(135deg,#4c8dff,#7c5cff);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--txt);padding:20px;max-width:1100px;margin:0 auto;
+  }
+  h1{font-size:20px;font-weight:600;display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  h1 .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .sub{color:var(--dim);font-size:12px;margin-bottom:20px}
+
+  .grid{display:grid;gap:14px;margin-bottom:20px}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:2fr 1fr}
+  @media(max-width:720px){.g3,.g2{grid-template-columns:1fr}}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .card .label{color:var(--dim);font-size:12px;margin-bottom:6px}
+  .big{font-size:34px;font-weight:700;background:var(--grad);-webkit-background-clip:text;
+       -webkit-text-fill-color:transparent;background-clip:text;line-height:1.2}
+  .big.plain{background:none;-webkit-text-fill-color:var(--txt)}
+  .unit{font-size:14px;color:var(--dim);font-weight:400;-webkit-text-fill-color:var(--dim);margin-left:4px}
+  .delta{font-size:22px;font-weight:600;color:var(--ok)}
+  .delta.zero{color:var(--dim)}
+
+  .barwrap{margin-top:12px}
+  .bar{height:8px;background:var(--card2);border-radius:4px;overflow:hidden}
+  .bar>i{display:block;height:100%;background:var(--grad);border-radius:4px;transition:width .5s}
+
+  h2{font-size:14px;color:var(--dim);margin:22px 0 10px;font-weight:600;
+     display:flex;justify-content:space-between;align-items:center}
+  h2 a{color:var(--acc);text-decoration:none;font-size:12px;font-weight:400}
+
+  .links{display:flex;flex-wrap:wrap;gap:10px}
+  .links a{
+    background:var(--card);border:1px solid var(--line);color:var(--txt);text-decoration:none;
+    padding:10px 16px;border-radius:10px;font-size:13px;transition:.2s;display:flex;align-items:center;gap:6px;
+  }
+  .links a:hover{border-color:var(--acc);background:var(--card2);transform:translateY(-1px)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--dim);font-weight:500;font-size:12px;padding:8px 10px;
+     border-bottom:1px solid var(--line)}
+  td{padding:9px 10px;border-bottom:1px solid rgba(40,50,76,.5)}
+  tr:last-child td{border-bottom:none}
+  .pts{color:var(--ok);font-weight:600;text-align:right;white-space:nowrap}
+  .pts.neg{color:var(--warn)}
+  .t{color:var(--dim);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .tag{display:inline-block;padding:1px 7px;border-radius:5px;font-size:11px;
+       background:rgba(76,141,255,.15);color:#8fb4ff;margin-left:6px}
+
+  .bars{display:flex;align-items:flex-end;gap:6px;height:90px;padding-top:8px}
+  .bars .b{flex:1;min-width:8px;background:var(--grad);border-radius:4px 4px 0 0;
+           position:relative;min-height:3px;transition:height .5s}
+  .bars .b span{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);
+                font-size:10px;color:var(--dim);white-space:nowrap}
+  .bars .b em{position:absolute;top:-18px;left:50%;transform:translateX(-50%);
+              font-size:10px;color:var(--dim);font-style:normal;white-space:nowrap}
+
+  .task{display:flex;justify-content:space-between;align-items:center;gap:12px;
+        padding:10px 12px;border-radius:10px;background:var(--card2);margin-bottom:8px;font-size:13px}
+  .task:hover{background:#212b45}
+  .task .l{flex:1;min-width:0}
+  .task .l a{color:var(--txt);text-decoration:none;display:block;overflow:hidden;
+             text-overflow:ellipsis;white-space:nowrap}
+  .task .l a:hover{color:var(--acc)}
+  .task .r{color:var(--ok);font-weight:600;white-space:nowrap}
+  .empty{color:var(--dim);font-size:13px;padding:16px;text-align:center}
+  .freshline{display:flex;align-items:center;gap:7px;margin-top:8px;font-size:12.5px;color:var(--dim)}
+  .freshline i{width:7px;height:7px;border-radius:50%;background:var(--dim);display:inline-block;flex:0 0 auto}
+  .freshline.ok i{background:var(--ok);box-shadow:0 0 7px var(--ok)}
+  .freshline.stale i{background:var(--warn);box-shadow:0 0 7px var(--warn)}
+  .freshline.err i{background:#ff5c5c;box-shadow:0 0 7px #ff5c5c}
+  .note{color:var(--dim);font-size:11.5px;margin-top:10px;line-height:1.7}
+  .err{background:rgba(255,176,32,.1);border:1px solid rgba(255,176,32,.3);color:var(--warn);
+       padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:13px}
+</style>
+</head>
+<body>
+
+<h1><span class="dot"></span>华为云成长中心 · 积分看板</h1>
+<div class="sub" id="sub">加载中…</div>
+<div id="err"></div>
+
+<div class="grid g3">
+  <div class="card">
+    <div class="label">当前总积分</div>
+    <div class="big" id="beans">—<span class="unit">分</span></div>
+  </div>
+  <div class="card">
+    <div class="label">今日增量 <span class="tag" id="todayTag"></span></div>
+    <div class="delta zero" id="today">—</div>
+  </div>
+  <div class="card">
+    <div class="label">本周增量 <span class="tag" id="weekTag"></span></div>
+    <div class="delta zero" id="week">—</div>
+  </div>
+</div>
+
+<div class="grid g2" style="margin-top:14px">
+  <div class="card">
+    <div class="label">今日任务完成度</div>
+    <div class="big plain" id="tasks" style="font-size:26px">—</div>
+    <div class="barwrap"><div class="bar"><i id="tbar" style="width:0"></i></div></div>
+  </div>
+  <div class="card">
+    <div class="label">数据新鲜度</div>
+    <div id="fresh" style="font-size:13px;color:var(--dim)">—</div>
+    <div id="freshDot" class="freshline"><i></i><span>加载中</span></div>
+    <div id="loginDot" class="freshline"><i></i><span>登录态检测中</span></div>
+  </div>
+</div>
+
+<div class="links" id="links"></div>
+
+<h2>每日积分增量 <a href="#" id="histToggle">显示数值</a></h2>
+<div class="card">
+  <div id="chart"></div>
+  <div class="note">
+    口径：每日增量 = <b>当天积分明细的入账合计</b>（来自成长中心流水，不是余额差）。
+    <br>余额差在漏采集或多天合并时会算错，因此仅在无明细可查时兜底使用。
+    <br>今日增量 = 今日入账合计；本周增量 = 本周一 00:00 至今的入账合计。
+  </div>
+</div>
+
+<div class="grid g2" style="margin-top:22px">
+  <div>
+    <h2>待完成任务 <span id="pendingCnt" class="tag"></span></h2>
+    <div id="pending"></div>
+  </div>
+  <div>
+    <h2>最近积分明细</h2>
+    <div class="card" style="padding:8px 4px">
+      <table><tbody id="flows"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+async function load() {
+  let d;
+  try {
+    const r = await fetch("points-data.json?t=" + Date.now());
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    d = await r.json();
+  } catch (e) {
+    $("sub").textContent = "数据读取失败";
+    $("err").innerHTML = `<div class="err">无法加载 points-data.json：${esc(e.message)}<br>
+      请先运行 <code>node scripts/points-snapshot.mjs</code> 生成数据。</div>`;
+    return;
+  }
+
+  $("sub").textContent = `数据日期 ${d.todayDate} · 最后采集 ${new Date(d.updatedAt).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}`;
+  $("beans").innerHTML = `${d.beans ?? "—"}<span class="unit">分</span>`;
+
+  const tg = d.todayGain || 0;
+  $("today").textContent = (tg > 0 ? "+" : "") + tg + (tg > 0 ? " 分" : "");
+  $("today").className = "delta" + (tg > 0 ? "" : " zero");
+  $("todayTag").textContent = (d.todayFlows || []).length + " 笔";
+
+  const wg = d.weekGain || 0;
+  $("week").textContent = (wg > 0 ? "+" : "") + wg + (wg > 0 ? " 分" : "");
+  $("week").className = "delta" + (wg > 0 ? "" : " zero");
+  $("weekTag").textContent = d.weekStart ? d.weekStart.slice(5) + " 起" : "";
+
+  // 数据新鲜度：由 cron 每 30 分钟采集一次（scripts/refresh-points.sh），
+  // 超过 70 分钟视为异常（留出一次漏跑的余量）
+  const ageH = d.updatedAt ? (Date.now() - new Date(d.updatedAt).getTime()) / 36e5 : Infinity;
+  const fd = $("freshDot");
+  if (!isFinite(ageH)) {
+    fd.className = "freshline err"; fd.querySelector("span").textContent = "时间未知";
+  } else if (ageH < 0.75) {
+    fd.className = "freshline ok"; fd.querySelector("span").textContent = `${Math.max(Math.round(ageH * 60), 1)} 分钟前采集 · 正常`;
+  } else if (ageH < 1.2) {
+    fd.className = "freshline ok"; fd.querySelector("span").textContent = `${Math.round(ageH * 60)} 分钟前采集`;
+  } else {
+    fd.className = "freshline stale"; fd.querySelector("span").textContent = `${(ageH / 24).toFixed(1)} 天未更新 · 采集任务可能未运行`;
+  }
+  $("fresh").innerHTML = `自动采集：每 30 分钟一次（xx:07 / xx:37）<br>本页每 60 秒自动重新读取`;
+
+  const f = d.missions?.finished || 0, t = d.missions?.total || 0;
+  $("tasks").textContent = `${f} / ${t}`;
+  $("tbar").style.width = t ? (f / t * 100) + "%" : "0";
+
+  // 快捷入口
+  const L = d.links || {};
+  const items = [
+    ["积分兑换", L.exchange], ["成长中心", L.grow], ["每日任务", L.missions],
+    ["发布作品", L.gallery], ["写文章", L.bbs], ["扫码/登录", L.scan],
+  ].filter(([, u]) => u);
+  $("links").innerHTML = items.map(([n, u]) =>
+    `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(n)} ↗</a>`).join("");
+
+  // 每日增量图
+  const daily = (d.daily || []).slice(-30);
+  if (!daily.length) {
+    $("chart").innerHTML = '<div class="empty">暂无历史数据（明天起会累积）</div>';
+  } else {
+    const max = Math.max(...daily.map((x) => Math.max(x.delta, 0)), 10);
+    let showNum = false;
+    const render = () => {
+      $("chart").innerHTML = `<div class="bars">` + daily.map((x) => {
+        const h = Math.max((Math.max(x.delta, 0) / max) * 78, 3);
+        return `<div class="b" style="height:${h}px" title="${esc(x.date)} +${x.delta}">
+          ${showNum ? `<em>+${x.delta}</em>` : ""}
+          <span>${esc(x.date.slice(5))}</span></div>`;
+      }).join("") + `</div>`;
+    };
+    render();
+    $("histToggle").onclick = (e) => {
+      e.preventDefault(); showNum = !showNum;
+      e.target.textContent = showNum ? "隐藏数值" : "显示数值";
+      render();
+    };
+  }
+
+  // 待办任务
+  const pend = d.missions?.pending || [];
+  $("pendingCnt").textContent = pend.length + " 项";
+  $("pending").innerHTML = pend.length
+    ? pend.map((m) => `<div class="task">
+        <div class="l"><a href="${esc(m.url || "#")}" target="_blank" rel="noopener">${esc(m.title)}</a></div>
+        <div class="r">+${m.bonus}</div></div>`).join("")
+    : '<div class="empty">今日任务已全部完成 🎉</div>';
+
+  // 明细
+  const flows = d.recentFlows || [];
+  $("flows").innerHTML = flows.length
+    ? flows.map((x) => `<tr>
+        <td class="t">${esc((x.time || "").slice(5, 16))}</td>
+        <td>${esc(x.source)}</td>
+        <td class="pts${x.points < 0 ? " neg" : ""}">${x.points > 0 ? "+" : ""}${x.points}</td>
+      </tr>`).join("")
+    : '<tr><td class="empty">暂无明细</td></tr>';
+}
+
+/** 登录态：读守护进程写的 scan-status.json（与扫码页共用同一个状态文件） */
+async function loadLogin() {
+  const el = $("loginDot");
+  try {
+    const r = await fetch("scan-status.json?t=" + Date.now());
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const s = await r.json();
+    if (s.ok) {
+      const min = s.checkedAt ? Math.round((Date.now() - s.checkedAt) / 60000) : null;
+      el.className = "freshline ok";
+      el.querySelector("span").textContent =
+        `登录态有效${min !== null ? `（${min < 1 ? "刚刚" : min + " 分钟前"}校验）` : ""} · 每 1.5h 自动保活`;
+    } else if (s.status === "need-scan" || s.status === "expired") {
+      el.className = "freshline err";
+      el.querySelector("span").innerHTML =
+        '登录已失效，需扫码 → <a href="scan.html" style="color:#ff5c5c">打开扫码页</a>';
+    } else {
+      el.className = "freshline stale";
+      el.querySelector("span").textContent = s.message || "登录态检测中";
+    }
+  } catch (e) {
+    el.className = "freshline stale";
+    el.querySelector("span").textContent = "登录态未知（scan-status.json 不可读）";
+  }
+}
+
+load();
+loadLogin();
+setInterval(load, 60000);        // 每分钟重新读取数据文件
+setInterval(loadLogin, 60000);   // 每分钟刷新登录态
+</script>
+</body>
+</html>

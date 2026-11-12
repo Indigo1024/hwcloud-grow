@@ -1,0 +1,29 @@
+{
+  "name": "hwcloud-grow-runner",
+  "version": "1.2.18",
+  "description": "Huawei Cloud Developer Grow Center task executor for AI agents (Playwright + CodeArts CLI)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Indigo1024/hwcloud-grow.git",
+    "directory": "runner"
+  },
+  "type": "module",
+  "scripts": {
+    "login": "node scripts/hwcloud-login.mjs",
+    "agent": "node scripts/agent-entry.mjs",
+    "agent:headless": "node scripts/agent-run.mjs --headless",
+    "agent:background": "node scripts/agent-background.mjs",
+    "report": "node scripts/show-report.mjs",
+    "report:wait": "node scripts/wait-report.mjs",
+    "qr-login": "node scripts/qr-login.mjs",
+    "login:daemon": "bash scripts/login-daemon.sh",
+    "login:check": "node scripts/login-daemon.mjs --once",
+    "auth:doctor": "node scripts/auth-doctor.mjs",
+    "daily": "bash scripts/daily-run.sh"
+  },
+  "dependencies": {
+    "playwright": "^1.51.0",
+    "qrcode": "^1.5.4"
+  },
+  "license": "MIT"
+}

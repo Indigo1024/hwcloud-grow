@@ -1,0 +1,85 @@
+{
+  "spec_version": "1.0.0",
+  "name": "Huawei Cloud Developer Growth Center",
+  "name_zh": "华为云开发者成长中心",
+  "description": "Agent discovery protocol for Huawei Cloud Developer Growth Center tasks and points system.",
+  "description_zh": "华为云开发者成长中心任务与积分体系的 Agent 发现协议。",
+  "portal_url": "https://developer.huaweicloud.com/grow",
+  "manifest": {
+    "type": "window_global",
+    "path": "window.__GROW_AGENT_MANIFEST__",
+    "spec_url": "https://gitcode.com/developer-ecosystem/hwcloud-grow/blob/main/docs/task-manifest-spec.md",
+    "spec_version": "1.0.0",
+    "refresh_event": "grow:manifest-ready"
+  },
+  "skills": [
+    {
+      "name": "hwcloud-grow",
+      "display_name": "Huawei Cloud Grow Task",
+      "display_name_zh": "华为云成长中心任务",
+      "description": "Complete Huawei Cloud Developer Growth Center tasks using structured manifest and browser session.",
+      "install": {
+        "npx": "npx skills add Indigo1024/hwcloud-grow",
+        "gitcode": "https://github.com/Indigo1024/hwcloud-grow.git",
+        "skill_path": "skill/SKILL.md"
+      },
+      "default_prompt": "请使用 hwcloud-grow skill，读取成长中心 Manifest，帮我完成今日可做的低风险任务。",
+      "default_prompt_en": "Use hwcloud-grow skill to read the Growth Center manifest and complete available low-risk tasks for today."
+    }
+  ],
+  "dom_selectors": {
+    "task_card": "[data-task-id]",
+    "behavior_row": "[data-behavior-id]",
+    "go_complete_button": "button.btn-c[data-task-id], [data-action='go-complete']",
+    "copy_agent_prompt": "[data-action='copy-agent-prompt']",
+    "agent_view_tab": "[data-view='agent']"
+  },
+  "deep_link": {
+    "params": ["grow_task", "grow_behavior", "grow_source"],
+    "source_value": "developer-grow"
+  },
+  "safety": {
+    "requires_user_session": true,
+    "no_credential_storage": true,
+    "rules": [
+      "Do not fake task completion or bypass platform checks",
+      "Do not repeat completed daily tasks",
+      "Pause and ask user before paid, identity, or review-required tasks",
+      "Use visible UI state and manifest status for verification"
+    ],
+    "rules_zh": [
+      "不要伪造任务完成或绕过平台校验",
+      "不要重复完成今日已做的循环任务",
+      "遇到付费、实名、审核类任务前必须询问用户",
+      "以 Manifest 状态和页面可见信息为准进行验证"
+    ]
+  },
+  "products": [
+    {
+      "id": "codearts",
+      "name": "华为云码道（CodeArts）",
+      "example_behaviors": ["BEH_CODEARTS_SEND_MSG", "BEH_CODEARTS_SUBSCRIBE"]
+    },
+    {
+      "id": "devspace",
+      "name": "开发者空间",
+      "example_behaviors": ["BEH_DEVSPACE_TOUR", "BEH_DEVSPACE_CREATE_ENV", "BEH_DEVSPACE_USE_ENV"]
+    },
+    {
+      "id": "forum",
+      "name": "开发者论坛",
+      "example_behaviors": ["BEH_FORUM_ANSWER_ADOPTED"]
+    },
+    {
+      "id": "community",
+      "name": "开发者社区",
+      "example_behaviors": ["BEH_COMMUNITY_PUBLISH_ARTICLE"]
+    }
+  ],
+  "documentation": {
+    "prd": "https://gitcode.com/developer-ecosystem/hwcloud-grow/blob/main/docs/prd-agent-view.md",
+    "manifest_spec": "https://gitcode.com/developer-ecosystem/hwcloud-grow/blob/main/docs/task-manifest-spec.md",
+    "repository": "https://gitcode.com/developer-ecosystem/hwcloud-grow"
+  },
+  "updated_at": "2026-07-02T00:00:00+08:00"
+}
