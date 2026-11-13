@@ -38,8 +38,28 @@ function argVal(name, dflt) {
 }
 // 二维码/状态写哪：默认与面板同目录（panel/），发布包和生产都能用
 const DATA_DIR = resolve(argVal("--data-dir", process.env.PANEL_STATIC_DIR || join(PROJECT_ROOT, "panel")));
-// 登录态存哪：按账号分目录，便于多账号隔离
-const AUTH_DIR = resolve(argVal("--auth-dir", process.env.HWCLOUD_AUTH_DIR || join(PROJECT_ROOT, "storage", "accounts")));
+/**
+ * 登录态写哪 —— **必须与 runner/scripts/auth-path.mjs 的规则完全一致**，
+ * 否则扫码成功了任务却读不到（表现："显示登录成功但不加账号"）。
+ *
+ * auth-path.mjs 的规则（2026-11-13 逐行核对）：
+ *   main  → <项目根>/runner/storage/huaweicloud-auth.json        （legacy 路径）
+ *   其它  → <项目根>/runner/storage/accounts/<id>/huaweicloud-auth.json
+ *
+ * ⚠️ 注意"其它账号"也放在 **runner** 下（不是 runner2）。
+ *   早先本函数按 `runnerN` 推目录（acct2→runner2、acct3→runner3），
+ *   那是错的：发布包里根本没有 runner3，用户加第三个账号必然写到不存在的目录。
+ *   正确的理解是——runner2 是"第二套独立部署"，只跑 acct2 一个账号；
+ *   而"在面板上继续加账号"属于**同一套部署的多账号模式**，
+ *   登录态都收在 runner/storage/accounts/<id>/ 下。
+ */
+function authFileFor(id) {
+  const env = process.env.HWCLOUD_AUTH_FILE;
+  if (env) return resolve(env);
+  const storageRoot = join(PROJECT_ROOT, "runner", "storage");
+  if (id === "main") return join(storageRoot, "huaweicloud-auth.json");
+  return join(storageRoot, "accounts", id, "huaweicloud-auth.json");
+}
 const TIMEOUT_SEC = Number(argVal("--timeout", "600"));
 
 // 命名规则必须与生产一致（见 runner/scripts/accounts.mjs 的 suffixFor）：
@@ -50,7 +70,8 @@ const TIMEOUT_SEC = Number(argVal("--timeout", "600"));
 const isLegacyId = accountId === "main";
 const QR_PATH = join(DATA_DIR, isLegacyId ? "scan-qr.png" : `scan-qr-${accountId}.png`);
 const STATUS_PATH = join(DATA_DIR, isLegacyId ? "scan-status.json" : `scan-status-${accountId}.json`);
-const AUTH_FILE = join(AUTH_DIR, `${accountId}.json`);
+const AUTH_FILE = authFileFor(accountId);
+const AUTH_DIR = dirname(AUTH_FILE);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(`[scan-login:${accountId}]`, ...a);
@@ -61,6 +82,44 @@ function writeStatus(patch) {
   const next = { ...cur, ...patch, accountId, at: Date.now() };
   mkdirSync(DATA_DIR, { recursive: true });
   try { writeFileSync(STATUS_PATH, JSON.stringify(next, null, 2)); } catch {}
+}
+
+/**
+ * 把账号登记进面板的账号清单（points-index.json）。
+ *
+ * 为什么必须做：面板顶部的账号切换条只读这个文件的 accountOrder/accounts，
+ * 而它平时由积分采集脚本维护。扫码登录是独立路径 —— 不在这里登记，
+ * 用户就会看到"扫码显示登录成功，但面板里还是'还没有添加账号'"。
+ *
+ * 写法与 points-snapshot.mjs 一致：**增量合并**，不整体覆盖
+ * （多个部署共用同一份文件，覆盖会把对方的账号抹掉）。
+ */
+function registerAccount(id) {
+  const file = join(DATA_DIR, "points-index.json");
+  let idx = { accounts: {}, accountOrder: [] };
+  try {
+    if (existsSync(file)) idx = JSON.parse(readFileSync(file, "utf8"));
+  } catch { /* 文件损坏就重建 */ }
+  if (!idx.accounts || typeof idx.accounts !== "object") idx.accounts = {};
+  if (!Array.isArray(idx.accountOrder)) idx.accountOrder = [];
+
+  // 账号名（nickname）这里拿不到 —— 它在华为云侧，要调接口才知道，
+  // 由积分采集脚本负责写入（points-snapshot.mjs 的 readNickname）。
+  // 这里先给个占位标签，采集跑过一次后会自动更新成真实账号名。
+  const label = id === "main" ? "账号 1" : `账号 ${id}`;
+  idx.accounts[id] = {
+    ...(idx.accounts[id] || {}),
+    label,
+    nickname: (idx.accounts[id] || {}).nickname || label,
+  };
+  if (!idx.accountOrder.includes(id)) idx.accountOrder.push(id);
+  idx.updatedAt = new Date().toISOString();
+  try {
+    writeFileSync(file, JSON.stringify(idx, null, 2), "utf8");
+    log(`已登记到面板账号清单：${id}`);
+  } catch (e) {
+    log(`⚠️ 登记账号清单失败：${String(e).slice(0, 60)}`);
+  }
 }
 
 // 复用各 runner 里的 playwright（发布包与生产都是 node_modules 在 runner/ 下）
@@ -224,6 +283,15 @@ async function main() {
       // 5) 校验真的登录上了（不是只看 cookie 存在）
       const ok = await page.evaluate(() => /我的积分|积分明细/.test(document.body.innerText)).catch(() => false);
       if (ok) {
+        // 6) **登记到面板账号清单**（关键一步）
+        //
+        // 2026-11-13 修：此前只写登录态文件就结束了，账号不会出现在面板里 ——
+        // 因为面板的账号列表来自 points-index.json，而那个文件只由积分采集脚本写，
+        // 且它的账号清单 = 注册表 ∪ 索引里已有的，新账号两边都不在，
+        // 于是"扫完码显示登录成功、但账号加不进去"。
+        // 这里主动把新账号写进索引，扫码成功即刻可见。
+        registerAccount(accountId);
+
         writeStatus({ status: "done", ok: true, message: "✅ 登录成功", authFile: AUTH_FILE });
         log(`✅ 登录成功，登录态已保存到 ${AUTH_FILE}`);
         return 0;
