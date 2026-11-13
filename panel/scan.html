@@ -34,6 +34,14 @@
   .meta{margin-top:22px;padding-top:18px;border-top:1px solid #f0f3f8;width:100%;
         font-size:12.5px;color:#98a0ad;line-height:1.9;text-align:left}
   .meta code{background:#f5f7fa;padding:2px 6px;border-radius:5px;font-size:12px;color:#5c6270}
+  /* 扫码日志面板：默认收起，出问题时展开看 */
+  .logbox{margin-top:14px;width:100%;text-align:left}
+  .logbox summary{cursor:pointer;font-size:12.5px;color:#7a8494;padding:6px 0;
+                  user-select:none;-webkit-user-select:none}
+  .logbox summary:hover{color:#4c8dff}
+  .logbox pre{margin:8px 0 0;padding:10px 12px;background:#11161f;color:#c8d2e0;
+              border-radius:8px;font-size:11.5px;line-height:1.6;max-height:260px;
+              overflow:auto;white-space:pre-wrap;word-break:break-all}
   .btn{display:inline-block;margin-top:16px;padding:9px 20px;border-radius:10px;background:#3a84ff;color:#fff;
        font-size:14px;text-decoration:none;font-weight:500}
   .btn:active{opacity:.85}
@@ -73,6 +81,12 @@
       <div>最后登录：<code id="mLogin">-</code></div>
       <div>本页每 3 秒自动刷新</div>
     </div>
+
+    <!-- 扫码日志：失败时最有用的东西。默认收起，出问题时点开看。 -->
+    <details class="logbox" id="logbox">
+      <summary>查看扫码日志（出问题时看这里）</summary>
+      <pre id="logtext">加载中…</pre>
+    </details>
   </div>
 
 <script>
@@ -133,11 +147,17 @@ async function loadIndex(){
     var r = await fetch('points-index.json?t=' + Date.now(), {cache:'no-store'});
     if (r.ok) idx = await r.json();
   } catch(e) { /* 索引缺失时退回只显示主号 */ }
-  ACC_IDS = (idx && idx.accountOrder) || ['main'];
+  // ⚠️ 注意空数组是真值：`[] || ['main']` 的结果是 `[]`，不是 `['main']`。
+  // 全新安装时 accountOrder 就是空数组，这里若不显式判长度，
+  // 下面的 current = ACC_IDS[0] 会把账号名变成 undefined，
+  // 于是页面去请求 scan-status-undefined.json（404），整个扫码页失效
+  // —— 这就是"新装之后加不了账号"的直接原因（2026-11-13 定位）。
+  var order = (idx && Array.isArray(idx.accountOrder)) ? idx.accountOrder : [];
+  ACC_IDS = order.length ? order.slice() : ['main'];
   ACC_META = (idx && idx.accounts) || {};
   // 带 ?acc= 进来时把该账号临时加入标签（即使尚未登记），便于用户看到进度
   if (paramAcc && ACC_IDS.indexOf(paramAcc) < 0) ACC_IDS = ACC_IDS.concat([paramAcc]);
-  if (ACC_IDS.indexOf(current) < 0) current = ACC_IDS[0];
+  if (!current || ACC_IDS.indexOf(current) < 0) current = ACC_IDS[0];
   renderTabs();
 }
 
@@ -214,7 +234,35 @@ function render(j){
   document.getElementById('mChecked').textContent = fmt(j && j.checkedAt);
   document.getElementById('mLogin').textContent = fmt(j && j.loginAt);
   tickCountdown();
+  refreshLog();
 }
+
+/**
+ * 拉扫码日志。只在用户展开日志面板时才请求，避免每 3 秒无谓地读文件。
+ */
+var logLoaded = false;
+async function refreshLog() {
+  var box = document.getElementById('logbox');
+  if (!box || !box.open) return;
+  try {
+    var r = await fetch('api/scan-log?acc=' + encodeURIComponent(current) + '&t=' + Date.now(),
+                        { cache: 'no-store' });
+    var j = await r.json();
+    var pre = document.getElementById('logtext');
+    if (!j.ok) { pre.textContent = '读取失败：' + (j.error || r.status); return; }
+    pre.textContent = (j.lines && j.lines.length)
+      ? j.lines.join('\n')
+      : '（还没有日志——如果一直停在等待扫码，多半是没装浏览器依赖或没有 X server，'
+        + '请先运行 node control/doctor.mjs 检查）';
+  } catch (e) {
+    document.getElementById('logtext').textContent = '读取失败：' + String(e).slice(0, 80);
+  }
+}
+// 展开时立即拉一次
+document.addEventListener('DOMContentLoaded', function () {
+  var box = document.getElementById('logbox');
+  if (box) box.addEventListener('toggle', function () { if (box.open) refreshLog(); });
+});
 
 function poll(){
   fetch(statusFile() + '?t=' + Date.now(), {cache:'no-store'})

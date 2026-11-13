@@ -143,6 +143,22 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if path.startswith("/api/harmony-status/"):
             acc = urllib.parse.unquote(path[len("/api/harmony-status/"):])
             return self._harmony_status(acc)
+        if path == "/api/scan-log":
+            # 读取扫码过程的日志（scan-login-<acc>.log）。
+            # 用途：扫码失败时用户能在面板上直接看到原因（缺 Xvfb、缺依赖、页面改版…），
+            # 而不是对着"一直在等待扫码"干着急。
+            qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            acc = (qs.get("acc") or ["main"])[0]
+            lp = os.path.join(STATIC_DIR, f"scan-login-{acc}.log")
+            try:
+                with open(lp, "r", errors="replace") as f:
+                    # 只取尾部若干行：日志会随轮次增长，全量没必要
+                    lines = f.read().splitlines()[-80:]
+                return self._json({"ok": True, "acc": acc, "lines": lines})
+            except FileNotFoundError:
+                return self._json({"ok": True, "acc": acc, "lines": [], "note": "还没有扫码日志"})
+            except OSError as e:
+                return self._json({"ok": False, "error": f"读取失败：{e}"}, 500)
         if path == "/api/scan-files":
             # 列出静态目录里的扫码状态文件，供面板识别"正在扫码但还没成功"的账号。
             # 只读，不碰任何账号数据。
@@ -213,9 +229,17 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json({"ok": False, "error": "缺少 acc 或 task"}, 400)
             return self._run_task(str(acc), str(key))
         if path == "/api/add-account":
-            # 添加账号：拉起一次扫码登录（默认一次只扫一个）。
-            # 详情见 _add_account。body: {acc?: "main|acct2|<自定义id>"}
-            acc = str(body.get("acc") or "").strip() or self._next_account_id()
+            # 添加账号：拉起一次扫码登录（一次只扫一个）。
+            # 最多两个账号（main / acct2），用满时明确拒绝并说明。
+            acc = str(body.get("acc") or "").strip()
+            if not acc:
+                acc = self._next_account_id()
+                if not acc:
+                    return self._json({
+                        "ok": False,
+                        "error": "已经有两个账号了，本项目最多支持两个",
+                        "hint": "如需更换，请先删掉一个（在面板上点它的卡片取消），再添加新的。",
+                    }, 409)
             return self._add_account(acc)
         if path == "/api/schedule":
             acc, field, value = body.get("acc"), body.get("field"), body.get("value")
@@ -358,22 +382,25 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         return self._json({"ok": True, "acc": acc, "removed": removed})
 
     def _next_account_id(self):
-        """挑一个还没被占用的账号 id：main → acct2 → acct3 …
+        """挑下一个可用的账号 id。
 
-        占用判据用**登录态文件**（storage/accounts/<id>.json）与**面板账号清单**
-        （points-index.json 的 accountOrder），**不用 scan-status*.json**：
-        后者只是一次扫码的临时进度文件，骨架里预置一份不该意味着"这个账号已存在"
-        （2026-11-11 踩到：全新安装时报 acct3，因为残留的状态文件把 main/acct2 都算占用了）。
+        **本项目最多支持两个账号**：main 和 acct2。
+        整套设计（runner 与 runner2 两套独立部署、账号注册表 ACCOUNTS 只有两项、
+        各自的 GitCode 凭证目录）都是按两个账号写的，
+        再加第三个会一路撞墙（注册表不认、没有对应的 runner3 目录）。
+
+        所以这里不再"自动往后编号"，两个都用满时明确拒绝并说明原因，
+        让用户看到清楚的理由，而不是加出一个永远跑不起来的账号。
+
+        @returns {str|None} 可用 id；两个都占用时返回 None
         """
         used = set()
-        # ① 已保存的登录态
-        try:
-            import glob as _glob
-            for p in _glob.glob(os.path.join(ROOT, "storage", "accounts", "*.json")):
-                used.add(os.path.basename(p)[:-len(".json")])
-        except OSError:
-            pass
-        # ② 面板账号清单（账号已入列即视为占用）
+        # ① 已保存的登录态（两个部署各自的 legacy 路径）
+        for rel in ("runner", "runner2"):
+            p = os.path.join(ROOT, rel, "storage", "huaweicloud-auth.json")
+            if os.path.exists(p):
+                used.add("main" if rel == "runner" else "acct2")
+        # ② 面板账号清单
         try:
             with open(os.path.join(STATIC_DIR, "points-index.json")) as f:
                 for a in json.load(f).get("accountOrder", []) or []:
@@ -382,10 +409,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             pass
         if "main" not in used:
             return "main"
-        i = 2
-        while f"acct{i}" in used:
-            i += 1
-        return f"acct{i}"
+        if "acct2" not in used:
+            return "acct2"
+        return None
 
     def _add_account(self, acc):
         """拉起扫码登录（后台跑，立即返回）。
@@ -409,11 +435,21 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         # 有头浏览器需要 X server：没设 DISPLAY 时兜底为 :99（生产/Xvfb 常用值）
         if not env.get("DISPLAY"):
             env["DISPLAY"] = ":99"
+        # 把扫码过程的输出落盘，而不是丢进 DEVNULL。
+        #
+        # 为什么（2026-11-13）：原先 stdout/stderr 都被丢弃，扫码一旦失败
+        # （缺 Xvfb、缺依赖、页面改版…）用户只看到"一直在等待扫码"，
+        # 完全不知道发生了什么。日志放在数据目录下，与二维码同级，好找。
+        log_path = os.path.join(STATIC_DIR, f"scan-login-{acc}.log")
+        try:
+            logf = open(log_path, "ab", buffering=0)
+        except OSError:
+            logf = subprocess.DEVNULL
         try:
             subprocess.Popen(
                 [NODE, script, acc, "--data-dir", STATIC_DIR],
                 cwd=CONTROL_DIR, env=env,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                stdout=logf, stderr=subprocess.STDOUT,
                 start_new_session=True,
             )
         except OSError as e:
@@ -421,6 +457,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         return self._json({"ok": True, "acc": acc,
                            "statusUrl": self._scan_name(acc, "scan-status", ".json"),
                            "qrUrl": self._scan_name(acc, "scan-qr", ".png"),
+                           "logUrl": f"api/scan-log?acc={acc}",
                            "note": "已拉起扫码，请用华为云 App 扫描；面板会自动检测结果"})
 
     @staticmethod
