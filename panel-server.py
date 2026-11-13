@@ -419,9 +419,21 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         except OSError as e:
             return self._json({"ok": False, "error": f"启动扫码失败：{e}"}, 500)
         return self._json({"ok": True, "acc": acc,
-                           "statusUrl": f"scan-status-{acc}.json",
-                           "qrUrl": f"scan-qr-{acc}.png",
+                           "statusUrl": self._scan_name(acc, "scan-status", ".json"),
+                           "qrUrl": self._scan_name(acc, "scan-qr", ".png"),
                            "note": "已拉起扫码，请用华为云 App 扫描；面板会自动检测结果"})
+
+    @staticmethod
+    def _scan_name(acc, base, ext):
+        """扫码相关文件名：main 用无后缀（兼容旧版页面），其余带 -<id>。
+
+        必须与 scan-login.mjs / accounts.mjs 的 suffixFor 保持一致。
+        2026-11-13 踩坑：这里曾写死 f"scan-status-{acc}.json"，
+        于是加账号接口给 main 返回 scan-status-main.json，
+        而实际文件是 scan-status.json —— 前端按错名字轮询，
+        永远看不到二维码，「加账号」看起来像坏的。
+        """
+        return f"{base}{ext}" if acc == "main" else f"{base}-{acc}{ext}"
 
     def _harmony_oauth(self, acc):
         """给前端一条鸿蒙 GitCode 授权链接。
