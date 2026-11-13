@@ -77,9 +77,36 @@ async function clickVisibleButton(page, matcher) {
 
   if (!pos) return { clicked: false, popup: null, pos: null };
   await page.bringToFront().catch(() => {});
+
+  // 用 locator.click() 而不是 CDP 的 mouse.down/up。
+  // 原因：这个页面是 Vue 组件，CDP 合成事件点不动（表现为 clicked=false 但元素可见）。
+  // 2026-11-13 实测：主号连续多天 clicked=false，任务却报"已执行"，实际没计分。
+  // locator.click() 会走真实的元素点击链路（含内核级 hit-test），对 Vue 有效。
+  let popup = null;
+  const useMouse = process.env.HWCLOUD_CLICK_WITH_MOUSE === "1";
+  try {
+    if (!useMouse) {
+      const loc = page.locator(
+        `button:has-text("${matcher.replace(/^re:/, "")}"), a:has-text("${matcher.replace(/^re:/, "")}"), [role=button]:has-text("${matcher.replace(/^re:/, "")}")`,
+      ).first();
+      if (pos.target === "_blank") {
+        const [p] = await Promise.all([
+          page.waitForEvent("popup", { timeout: 20_000 }).catch(() => null),
+          loc.click({ timeout: 8000 }).catch(() => {}),
+        ]);
+        popup = p;
+      } else {
+        await loc.click({ timeout: 8000 });
+      }
+      await sleep(1500);
+      return { clicked: true, popup, pos };
+    }
+  } catch {
+    // locator 失败时回落旧的鼠标点击（保留兜底，便于页面大改后仍有机会）
+  }
+
   await page.mouse.move(pos.x, pos.y);
   await sleep(250);
-  let popup = null;
   if (pos.target === "_blank") {
     const [p] = await Promise.all([
       page.waitForEvent("popup", { timeout: 20_000 }).catch(() => null),
@@ -146,45 +173,65 @@ async function main() {
     await page.evaluate(() => window.scrollTo(0, 600)).catch(() => {});
     await sleep(2500);
 
-    // ---- 任务1: 浏览案例 +10 ----
-    // 已完成就跳过（按钮变灰「已完成」）。没完成才点。
-    const cardTxt = await page.evaluate(() => document.body.innerText).catch(() => "");
-    const browseDone = cardTxt.includes("已完成") && !/去浏览案例/.test(cardTxt);
-    log("浏览任务已完成?", browseDone);
-    let r1 = { clicked: false, popup: null, pos: null };
-    if (!browseDone) {
-      log("点「去浏览案例」…");
-      // 不能用 cls:hmp-action 兜底——任务页上「绑定并去 Star」也是 hmp-action，会先点错。
-      r1 = await clickVisibleButton(page, "去浏览案例");
-      if (!r1.clicked) r1 = await clickVisibleButton(page, "re:去浏览案例|去浏览");
-      log(`  clicked=${r1.clicked} pos=${JSON.stringify(r1.pos)}`);
-    }
-    let browsePage = r1.popup || page;
-    if (r1.popup) await r1.popup.waitForLoadState("domcontentloaded").catch(() => {});
-    await sleep(8000);
-    log("  当前:", browsePage.url().slice(0, 100));
-
-    // 进案例中心后，打开第一个案例停留（任务要求：打开详情页并保持浏览 30 秒）
-    if (/\/cases/.test(browsePage.url())) {
-      log("在案例中心，打开第一个案例…");
-      const first = await browsePage.evaluate(() => {
-        const as = [...document.querySelectorAll("a")].filter((a) => /\/cases\/[0-9a-f]{16,}/.test(a.href));
-        return as[0] ? { href: as[0].href, t: (as[0].innerText || "").slice(0, 30) } : null;
+    // ----- 任务1: 浏览案例 +10 -----
+    //
+    // 任务定义（来自 /api/growth/tasks）：
+    //   description "打开任意案例详情页并保持浏览 30 秒"
+    //   evaluator   "dwell"，need_seconds=30，max_gap_ms=15000
+    // 也就是说**判据是"在案例详情页停留够 30 秒"**，并不要求先点某个按钮。
+    //
+    // 2026-11-13 改：此前实现是"在任务页点「去浏览案例」按钮 → 进案例中心 → 点第一个案例"，
+    // 但任务页改版后该按钮已不在（实测页面是鸿蒙首页，没有这个按钮），
+    // 于是 clicked=false，脚本却仍报"动作已执行" —— 连续多日假成功。
+    // 现在直接走可靠路径：案例列表 → 打开任一详情页 → 停留够时长。
+    // 是否已完成：查官方任务接口，而不是解析页面按钮文案。
+    // 任务页改版后按钮文案不再可靠（页面已不是任务列表，见下方说明）。
+    let browseDone = false;
+    try {
+      const st = await page.evaluate(async () => {
+        const t = await (await fetch("/api/growth/tasks", { credentials: "include" })).json();
+        const task = (t.tasks || []).find((x) => x.task_key === "case-view-daily");
+        return task ? { status: task.today_status, elapsed: task.elapsed_seconds || 0 } : null;
       }).catch(() => null);
-      if (first) {
-        log(`  打开: ${first.t}`);
-        await browsePage.goto(first.href, { waitUntil: "domcontentloaded", timeout: 90000 }).catch(() => {});
-        log("  案例页:", browsePage.url().slice(0, 100));
-        // 任务卡：打开任意案例详情页并保持浏览 30 秒。提前离开可能不计。
-        log("  停留 32s 满足浏览时长…");
-        await sleep(32000);
-        const go = await clickVisibleButton(browsePage, "re:开始实践|进入|立即体验|去完成");
-        log(`  实践入口: ${go.clicked}`);
-        await sleep(8000);
-      } else {
-        log("  未找到案例链接");
+      if (st) {
+        browseDone = st.status === "done";
+        log(`浏览任务状态: ${st.status}（已浏览 ${st.elapsed || 0}s / 需 30s）`);
       }
-      await sleep(5000);
+    } catch { /* 拿不到就按未完成处理，下面会去执行 */ }
+    log("浏览任务已完成?", browseDone);
+    // 本次是否真的打开了案例详情页并停留够时长（用于末尾如实汇报）
+    let browseVisited = false;
+    if (browseDone) {
+      log("  任务页显示已完成，跳过浏览");
+    } else {
+      log("打开案例列表…");
+      await page.goto(CASES_URL, { waitUntil: "domcontentloaded", timeout: 90000 }).catch(() => {});
+      await sleep(8000);
+
+      // 找任一案例详情链接（页面上有"查看案例"链接与卡片链接，取第一个可用的）
+      const first = await page.evaluate(() => {
+        const as = [...document.querySelectorAll("a")]
+          .filter((a) => /\/cases\/[0-9a-zA-Z]{8,}/.test(a.href));
+        return as[0] ? { href: as[0].href } : null;
+      }).catch(() => null);
+
+      if (first) {
+        log(`  打开案例: ${first.href.slice(-20)}`);
+        await page.goto(first.href, { waitUntil: "domcontentloaded", timeout: 90000 }).catch(() => {});
+        await sleep(3000);
+        log(`  当前: ${page.url().slice(0, 100)}`);
+        // 官方要求"保持浏览 30 秒"（need_seconds=30，间隔超 15s 会重置），
+        // 多停一会儿留余量，且期间做点轻量滚动，避免被判为挂机。
+        log("  停留 40s 满足浏览时长…");
+        for (let i = 0; i < 8; i++) {
+          await page.mouse.wheel(0, 300).catch(() => {});
+          await sleep(5000);
+        }
+        browseVisited = true;
+        log("  ✅ 已在案例详情页停留足够时长");
+      } else {
+        log("  ❌ 案例列表里没找到详情链接");
+      }
     }
 
     // ---- 任务2: Star +30 ----
@@ -212,11 +259,29 @@ async function main() {
 
     // 汇报 mission 状态
     log("查任务完成状态…");
-    // 简单打一下 bonus flow 今日鸿蒙相关
+    // 查今日积分明细，看鸿蒙相关是否到账 —— 这是唯一可信的判据
     const flows = (await api.bonusFlow(20).catch(() => [])) || [];
     const todayHits = flows.filter(f => String(f.time || "").startsWith(today) && /鸿蒙|harmony|浏览|Star/i.test(f.source || ""));
     if (todayHits.length) todayHits.forEach(f => log(`✅ ${f.time} +${f.points} ${f.source}`));
-    else log("今日暂无鸿蒙相关积分（可能有延迟）");
+
+    // 结论要如实：以「积分是否到账」为准，而不是「我们跑过没有」。
+    // 2026-11-13 修：此前无论点击成功与否都打印"动作已执行"并 return 0，
+    // 导致面板显示成功、实际没计分（主号连续多日如此）。
+    const browseGot = todayHits.some((f) => /浏览/.test(f.source || ""));
+    const starGot = todayHits.some((f) => /Star|star/.test(f.source || ""));
+    if (browseGot || starGot) {
+      log(`✅ 已到账：${[browseGot && "浏览", starGot && "Star"].filter(Boolean).join("、")}`);
+      return 0;
+    }
+    if (!browseVisited && !browseDone) {
+      log("❌ 鸿蒙浏览未执行（未能打开案例详情页），且今日无到账记录");
+      return 2;
+    }
+    if (browseVisited) {
+      log("⚠️ 已执行浏览动作，但今日积分尚未到账（平台有延迟，次日再看）");
+      return 0;
+    }
+    log("⚠️ 本次未产生新的浏览动作（可能今日已完成或页面结构变化）");
     return 0;
   } finally {
     await api.close().catch(() => {});

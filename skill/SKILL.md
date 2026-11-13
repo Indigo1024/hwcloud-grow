@@ -1,7 +1,7 @@
 ---
 name: huaweicloud-grow
 description: |
-  华为云开发者成长中心自动做任务拿积分。克隆仓库后在本机 runner/ 串行执行全部 auto_run 任务，无需逐项确认。
+  华为云开发者成长中心自动做任务拿积分。克隆 GitCode 仓库后在本机 runner/ 串行执行全部 auto_run 任务，无需逐项确认。
   Triggers: 成长中心、grow、huaweicloud-grow、开发者成长、签到、码道、自动做任务、拿积分
 version: 3.5.1
 ---
@@ -18,7 +18,7 @@ version: 3.5.1
 
 Agent **必须**按下方流程执行，**不要**根据环境改用 `agent:headless`、`agent:ide`、`agent:background` 等其他命令——一律使用 **`npm run agent`**，runner 会自动识别运行环境。
 
-> **禁止 WebFetch/Fetch 读仓库 URL**（常返回 HTML 而非 SKILL.md）。必须先 `git clone` 再读本地 `skill/SKILL.md`。
+> **禁止 WebFetch/Fetch 读 GitCode URL**（常返回 HTML 而非 SKILL.md）。必须先 `git clone` 再读本地 `skill/SKILL.md`。
 
 > **核心原则**：任务完成靠**本机 Playwright 执行器**（`runner/`），不是靠 Fetch/curl 打开网页。加载本 Skill 后**立即自动执行**，不要逐项询问用户是否继续。
 
@@ -34,7 +34,7 @@ Agent **必须**按下方流程执行，**不要**根据环境改用 `agent:head
 
 ## 禁止事项
 
-- **禁止**使用 `Fetch` / `WebFetch` 读取 Skill（仓库的 raw/blob 页面会返回 HTML，不是 SKILL.md）
+- **禁止**使用 `Fetch` / `WebFetch` 读取 Skill（GitCode raw/blob 页面会返回 HTML，不是 SKILL.md）
 - **禁止**用码道 AK/SK；码道 OAuth 由浏览器点「确认授权」
 - **禁止**在每完成一个任务后停下来问用户「是否继续」——串行跑完 `auto_run` 任务即可
 - **禁止**自行选择 `agent:headless` / `agent:ide` / `agent:background`（统一用 `npm run agent`）

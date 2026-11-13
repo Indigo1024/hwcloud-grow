@@ -204,8 +204,9 @@ log "启动鸿蒙每日浏览案例（约 1 分钟）..."
 timeout --signal=KILL 420 node harmony-daily.mjs >> "$LOG_FILE" 2>&1
 HM_RC=$?
 case "$HM_RC" in
-  0) log "鸿蒙浏览动作已执行（以明细为准）" ;;
-  *) log "⚠️ 鸿蒙浏览异常，退出码=$HM_RC" ;;
+  0) log "鸿蒙任务结束（是否计分以积分明细为准）" ;;
+  2) log "❌ 鸿蒙浏览未执行（脚本判定未点中按钮），详见上方 harmony-daily 输出" ;;
+  *) log "⚠️ 鸿蒙任务异常，退出码=$HM_RC" ;;
 esac
 
 # 4.5 展览馆作品发布（MONTHLY×1）
