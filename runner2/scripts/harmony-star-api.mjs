@@ -28,15 +28,61 @@ const log = (m) => console.log(`[star-api] ${m}`);
 const GITCODE_HOME = acc === "acct2" ? "/root/.gitcode-acct2" : "/root/.gitcode";
 
 /**
- * 候选目标仓（harmony-practice-center 组织下）。
- * /orgs/{org}/repos 403 拿不到列表，所以内置几个已知存在的；
- * 逐个尝试，任一成功即满足「match=any」。
+ * 目标仓发现：优先用搜索接口动态拿该组织的仓库列表，拿不到才回落内置名单。
+ *
+ * 为什么要动态发现（2026-11-13）：
+ *   这是**每日**任务，每天都要产生一个"新的 Star 动作"。
+ *   内置名单只有十几个，两个账号每天各点一个，十几天就点完，
+ *   之后又会回到"每天假成功、积分不到账"的老问题。
+ *   实测搜索接口 `?q=harmony-practice-center` 能返回该组织 19~20 个仓库，
+ *   用它动态列举，只要组织还在更新仓库就永远不会耗尽。
  */
-const CANDIDATES = [
+const FALLBACK_CANDIDATES = [
   "HarmonyOS-AtomSer-AdventureWheel",
-  "word-check-in",
-  "HarmonyOS-APP-word-check-in",
+  "HarmonyOS-APP-Inspiration-Note",
+  "HarmonyOS-APP-Moonlight-Post",
+  "HarmonyOS-APP-OBSCloudAlbum",
+  "HarmonyOS-APPTMPL-Weather",
+  "HarmonyOS-AtomSerTMPL-MuseumTicket",
+  "HarmonyOS-AtomSerTMPL-Parking",
+  "HarmonyOS-AtomSerTMPL-ReservationQueue",
+  "HarmonyOS-AtomSerTMPL-SchoolLife",
+  "HarmonyOS-AtomSerTMPL-ShoppingMall",
+  "HarmonyOS-AtomSerTMPL-SocialDating",
+  "HarmonyOS-AtomSerTMPL-TouristAttraction",
+  "HarmonyOS-AtomSerTMPL-news",
+  "2048",
+  "Recipes",
 ];
+
+const ORG = "harmony-practice-center";
+
+/** 动态发现该组织下的仓库；失败则返回内置名单 */
+async function discoverCandidates(token) {
+  const found = new Set();
+  for (const q of [ORG, "HarmonyOS-AtomSer", "HarmonyOS-APP", "HarmonyOS-APPTMPL"]) {
+    for (let page = 1; page <= 3; page++) {
+      const r = await api(
+        `/search/repositories?q=${encodeURIComponent(q)}&per_page=50&page=${page}`,
+        { token },
+      );
+      if (!r.ok) break;
+      const items = Array.isArray(r.json) ? r.json : (r.json?.items || []);
+      if (!items.length) break;
+      for (const x of items) {
+        const fn = x.full_name || "";
+        if (fn.startsWith(`${ORG}/`)) found.add(fn.slice(ORG.length + 1));
+      }
+      if (items.length < 50) break;
+    }
+  }
+  if (found.size) {
+    log(`动态发现该组织 ${found.size} 个仓库`);
+    return [...found];
+  }
+  log("搜索接口没返回结果，改用内置名单");
+  return FALLBACK_CANDIDATES;
+}
 
 function readToken() {
   if (process.env.GITCODE_TOKEN) return process.env.GITCODE_TOKEN;
@@ -78,25 +124,33 @@ async function main() {
     if (r.json.length < 100) break;
   }
 
-  // 组织里已 star 过任意一个 → 今天的任务条件已满足
+  // 该组织下已 star 的
   const already = [...starred].filter((f) => f.startsWith("harmony-practice-center/"));
-  if (already.length) {
-    log(`✅ 已 Star 过该组织仓库：${already.join(", ")}（任务条件已满足）`);
-    return 0;
-  }
+  log(`已 Star 该组织仓库 ${already.length} 个：${already.join(", ") || "（无）"}`);
 
-  // 逐个候选仓尝试 Star
-  for (const repo of CANDIDATES) {
-    const full = `harmony-practice-center/${repo}`;
+  // 找候选列表里还没 star 的（每天需要一个新动作）
+  const candidates = await discoverCandidates(token);
+  const toTry = candidates
+    .map((name) => `${ORG}/${name}`)
+    .filter((full) => !starred.has(full));
+
+  if (toTry.length === 0) {
+    log(`❌ 发现到的 ${candidates.length} 个仓库全部已 Star，暂时没有新动作可做`);
+    return 3;
+  }
+  log(`其中 ${toTry.length} 个尚未 Star，开始尝试…`);
+
+  // 逐个尝试 Star
+  for (const full of toTry) {
     const r = await api(`/repos/${full}/star`, { method: "POST", token });
     if (r.ok) {
-      log(`✅ 已 Star：${full}`);
+      log(`✅ 已 Star：${full}（今日新动作）`);
       return 0;
     }
     log(`  ${full} → HTTP ${r.status}${r.json?.error_message ? " " + r.json.error_message.slice(0, 60) : ""}`);
   }
 
-  log("❌ 所有候选仓都没能 Star 成功");
+  log("❌ 所有未 Star 的候选仓都没能成功");
   return 3;
 }
 
